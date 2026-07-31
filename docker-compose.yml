@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  legacy-postgres:
+    image: postgres:16
+    container_name: toeic_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    restart: unless-stopped
+
+  auth-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: toeic_auth
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-change-me-auth}
+      POSTGRES_DB: toeic_auth
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  exam-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: toeic_exam
+      POSTGRES_PASSWORD: ${EXAM_DB_PASSWORD:-change-me-exam}
+      POSTGRES_DB: toeic_exam
+    ports:
+      - "5434:5432"
+    volumes:
+      - exam_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  catalog-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: toeic_catalog
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:-change-me-catalog}
+      POSTGRES_DB: toeic_catalog
+    ports:
+      - "5435:5432"
+    volumes:
+      - catalog_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  account-service:
+    build: ./backend/account-service
+    environment:
+      PORT: 4001
+      DATABASE_URL: postgresql://toeic_auth:${AUTH_DB_PASSWORD:-change-me-auth}@auth-db:5432/toeic_auth?schema=public
+      JWT_SECRET: super-secret-toeic-key
+    depends_on:
+      - auth-db
+    restart: unless-stopped
+
+  exam-service:
+    build: ./backend/exam-service
+    environment:
+      PORT: 4002
+      DB_HOST: exam-db
+      DB_USER: toeic_exam
+      DB_PASSWORD: ${EXAM_DB_PASSWORD:-change-me-exam}
+      DB_NAME: toeic_exam
+      DATABASE_URL: postgresql://toeic_exam:${EXAM_DB_PASSWORD:-change-me-exam}@exam-db:5432/toeic_exam?schema=public
+      JWT_SECRET: super-secret-toeic-key
+    ports:
+      - "4002:4002"
+    depends_on:
+      - exam-db
+    restart: unless-stopped
+
+  catalog-service:
+    build: ./backend/catalog-service
+    environment:
+      PORT: 4003
+      DB_HOST: catalog-db
+      DB_USER: toeic_catalog
+      DB_PASSWORD: ${CATALOG_DB_PASSWORD:-change-me-catalog}
+      DB_NAME: toeic_catalog
+      DATABASE_URL: postgresql://toeic_catalog:${CATALOG_DB_PASSWORD:-change-me-catalog}@catalog-db:5432/toeic_catalog?schema=public
+      JWT_SECRET: super-secret-toeic-key
+    ports:
+      - "4003:4003"
+    depends_on:
+      - catalog-db
+    restart: unless-stopped
+
+  ai-service:
+    build: ./backend/ai-service
+    environment:
+      PORT: 4004
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    ports:
+      - "4004:4004"
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./backend/api-gateway
+    environment:
+      PORT: 4000
+      JWT_SECRET: super-secret-toeic-key
+      AUTH_SERVICE_URL: http://account-service:4001
+      EXAM_SERVICE_URL: http://exam-service:4002
+      CATALOG_SERVICE_URL: http://catalog-service:4003
+      AI_SERVICE_URL: http://ai-service:4004
+    ports:
+      - "4000:4000"
+    depends_on:
+      - account-service
+      - exam-service
+      - catalog-service
+      - ai-service
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  auth_data:
+  exam_data:
+  catalog_data:

@@ -1,0 +1,212 @@
+# CHƯƠNG 2: BẢN PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG UML
+
+---
+
+## 2.1. TỔNG QUAN VỀ PHÂN TÍCH YÊU CẦU NGHỆU VỤ
+
+Hệ thống **AeroTOEIC AI Portal** được xây dựng nhằm phục vụ nhu cầu luyện thi chứng chỉ TOEIC chuẩn quốc tế cho học viên, cung cấp công cụ quản lý thống kê cho các trung tâm đào tạo và công cụ quản trị nội dung đề thi cho Ban quản trị.
+
+### 2.1.1. Xác định các Tác nhân (Actors) trong Hệ thống
+1. **Học viên (Student):** Người dùng trực tiếp sử dụng hệ thống để ôn luyện từ vựng, thi thử các bộ đề Part 1-7, tương tác với Trợ lý AeroAI Chatbot 24/7 và xem phân tích giải thích câu hỏi chuyên sâu từ AI.
+2. **Quản lý Trung tâm (Tenant Manager):** Người quản lý theo dõi các chỉ số báo cáo tổng quan của học viên, số lượng bài thi hoàn thành và điểm số trung bình của toàn trung tâm.
+3. **Quản trị viên (SuperAdmin):** Người nắm quyền quản trị tối cao, phụ trách quản lý tài khoản người dùng, phân quyền hệ thống và biên soạn/xuất bản (Publish) các bộ đề thi mới.
+4. **Hệ thống Bên ngoài (External Systems):**
+   - **Google Identity Services (OAuth 2.0):** Xác thực người dùng qua tài khoản Google.
+   - **Google Gemini AI Engine:** Xử lý các yêu cầu phân tích sư phạm và hội thoại AI real-time.
+
+---
+
+## 2.2. SƠ ĐỒ USE CASE VÀ ĐẶC TẢ CHI TIẾT (USE CASE DIAGRAM)
+
+### 2.2.1. Sơ đồ Use Case Tổng thể
+```text
+                       ┌────────────────────────────────────────────────────────┐
+                       │               AeroTOEIC AI Portal System               │
+                       ├────────────────────────────────────────────────────────┤
+                       │  (UC-01: Đăng nhập Google OAuth 2.0 / Email)           │
+                       │  (UC-02: Quản lý Hồ sơ & Mục tiêu điểm TOEIC)          │
+  ┌─────────────┐      │  (UC-03: Duyệt Danh mục Bài thi Part 1-7)               │
+  │   Student   ├─────►│  (UC-04: Thi thử Full Test & Bấm giờ đếm ngược)       │
+  └─────────────┘      │  (UC-05: Xem Kết quả & Quy đổi điểm TOEIC)             │
+                       │  (UC-06: Chat với Trợ lý AeroAI 24/7)                 │
+                       │  (UC-07: Xem AI Phân tích chi tiết câu hỏi)            │
+                       ├────────────────────────────────────────────────────────┤
+  ┌─────────────┐      │  (UC-08: Xem Thống kê Tổng quan Trung tâm)             │
+  │   Manager   ├─────►│  (UC-09: Quản lý Danh sách Điểm số Học viên)           │
+  └─────────────┘      ├────────────────────────────────────────────────────────┤
+  ┌─────────────┐      │  (UC-10: Quản lý Tài khoản & Phân quyền User)          │
+  │ SuperAdmin  ├─────►│  (UC-11: Soạn thảo & Xuất bản Đề thi ETS)              │
+  └─────────────┘      │  (UC-12: Cấu hình Quy tắc Huấn luyện AI)                │
+                       └────────────────────────────────────────────────────────┘
+```
+
+### 2.2.2. Đặc tả Use Case Trọng tâm: "UC-07 - Xem AI Phân tích chi tiết câu hỏi"
+- **Tác nhân:** Học viên (Student).
+- **Mục đích:** Nhận phân tích sư phạm real-time từ Google Gemini AI cho một câu hỏi thi thử.
+- **Tiền điều kiện:** Học viên đang ở giao diện làm bài (`TestPlayer`) hoặc giao diện xem lại đáp án.
+- **Luồng sự kiện chính (Main Flow):**
+  1. Học viên bấm nút `🤖 Phân Tích Chuyên Sâu Bằng AeroAI →` tại câu hỏi mong muốn.
+  2. Giao diện hiển thị trạng thái chờ `⏳ AeroAI đang phân tích câu hỏi...`.
+  3. Frontend gửi request chứa nội dung câu hỏi, mảng 4 phương án, đáp án đúng và bài đọc (nếu có) tới API Gateway.
+  4. API Gateway định tuyến request tới `ai-service`.
+  5. `ai-service` gắn Quy tắc Hệ thống (`systemInstruction`) và gửi yêu cầu sang `Google Gemini AI`.
+  6. Google Gemini AI tự suy luận và trả về cấu trúc JSON gồm: Dịch nghĩa, Lý do đúng, Bảng từ vựng IPA, Cảnh báo bẫy.
+  7. Frontend nhận JSON và hiển thị mượt mà lên Khung phân tích AeroAI màu xanh.
+- **Luồng ngoại lệ (Alternative Flow):**
+  - Nếu kết nối mạng gián đoạn, `ai-service` tự động kích hoạt bộ dự phòng Smart Fallback để trả về lời giải quy chuẩn, đảm bảo giao diện không bị treo.
+
+---
+
+## 2.3. SƠ ĐỒ LỚP VÀ MÔ HÌNH DỮ LIỆU (CLASS DIAGRAM)
+
+Các đối tượng thực thể (Domain Entities) trong hệ thống được thiết kế theo chuẩn mã nguồn TypeScript và CSDL PostgreSQL:
+
+```text
+┌──────────────────────────────────┐        ┌──────────────────────────────────┐
+│              User                │        │               Exam               │
+├──────────────────────────────────┤        ├──────────────────────────────────┤
+│ + id: String (UUID)              │        │ + id: String (UUID)              │
+│ + email: String                  │ 1    * │ + code: String (Unique)          │
+│ + name: String                   │───────►│ + title: String                  │
+│ + role: UserRole (STUDENT/ADMIN) │        │ + durationMinutes: Int           │
+│ + avatar: String                 │        │ + status: ExamStatus (PUBLISHED) │
+│ + createdAt: DateTime            │        └──────────────────────────────────┘
+└──────────────────────────────────┘                         │ 1
+                 │ 1                                         │
+                 │                                           │ *
+                 │ *                                         ▼
+┌──────────────────────────────────┐        ┌──────────────────────────────────┐
+│            ExamResult            │        │             Question             │
+├──────────────────────────────────┤        ├──────────────────────────────────┤
+│ + id: String (UUID)              │        │ + id: String (UUID)              │
+│ + userId: String                 │        │ + examCode: String               │
+│ + examCode: String               │        │ + questionNumber: Int            │
+│ + listeningCorrect: Int          │        │ + part: Int (1 -> 7)             │
+│ + readingCorrect: Int            │        │ + questionText: String           │
+│ + totalScore: Int (10 -> 990)    │        │ + optionA, B, C, D: String       │
+│ + answers: Json                  │        │ + correctAnswer: String          │
+│ + submittedAt: DateTime          │        │ + audioUrl, imageUrl: String     │
+└──────────────────────────────────┘        └──────────────────────────────────┘
+```
+
+---
+
+## 2.4. SƠ ĐỒ TUẦN TỰ (SEQUENCE DIAGRAMS)
+
+### 2.4.1. Sơ đồ Tuần tự: Luồng AI Phân tích chi tiết câu hỏi (AI Question Explanation)
+```text
+Student          TestPlayerUI        APIGateway        ai-service       GoogleGeminiAPI
+   │                  │                  │                  │                  │
+   │── Click AI Button│                  │                  │                  │
+   │─────────────────►│                  │                  │                  │
+   │                  │── POST /api/ai/explain ────────────►│                  │
+   │                  │   (headers, questionPayload)        │                  │
+   │                  │                  │                  │── System Prompt + Payload 
+   │                  │                  │                  │─────────────────►│
+   │                  │                  │                  │                  │ (Neural Inference)
+   │                  │                  │                  │◄─ Return JSON ───│
+   │                  │                  │                  │   (Translation, Vocab, Trap)
+   │                  │◄─ Render Green Box Component ───────│                  │
+   │                  │   (Structured JSON)                 │                  │
+   │◄─ Read AI Analysis
+```
+
+### 2.4.2. Sơ đồ Tuần tự: Luồng Đăng nhập bằng Google OAuth 2.0
+```text
+Student           LoginUI         GoogleSDK       account-service      PostgreSQL
+   │                 │                │                  │                  │
+   │─ Click Google ─►│                │                  │                  │
+   │                 │─ Prompt SignIn─►                  │                  │
+   │                 │◄─ Return Token ─                  │                  │
+   │                 │   (credential)                    │                  │
+   │                 │── POST /api/auth/google ─────────►│                  │
+   │                 │   (credential)                    │                  │
+   │                 │                                   │─ Upsert User ───►│
+   │                 │                                   │◄─ User Record ───│
+   │                 │◄─ Return JWT Token + User Data ───│                  │
+   │◄─ Redirect Dashboard
+```
+
+---
+
+## 2.5. SƠ ĐỒ HOẠT ĐỘNG (ACTIVITY DIAGRAM)
+
+Luồng hoạt động của Học viên từ khi truy cập Trung tâm làm bài cho tới khi nhận kết quả phân tích AI:
+
+```text
+(*) Start
+ │
+ ▼
+[Đăng nhập vào Hệ thống]
+ │
+ ▼
+[Chọn Đề thi / Chọn Luyện từng Part (Part 1-7)]
+ │
+ ▼
+[Khởi tạo Chế độ Thi thử (Exam Mode) hoặc Luyện tập (Practice Mode)]
+ │
+ ├──► (Chế độ Thi thử) ────► [Bấm giờ đếm ngược 120' -> Nộp bài -> Chấm điểm 10-990] ──┐
+ │                                                                                    │
+ └──► (Chế độ Luyện tập) ──► [Xem câu hỏi & Chọn đáp án]                              │
+                                   │                                                  │
+                                   ▼                                                  │
+                       < Học viên bấm nút AeroAI? >                                   │
+                             │                  │                                     │
+                           (Có)               (Không)                                 │
+                             │                  │                                     │
+                             ▼                  ▼                                     │
+                   [Gửi câu hỏi sang]   [Chuyển sang]                                 │
+                    [  ai-service  ]    [ câu tiếp  ]                                 │
+                             │                  │                                     │
+                             ▼                  │                                     │
+                   [AI trả lời JSON]            │                                     │
+                             │                  │                                     │
+                             ▼                  │                                     │
+                   [Hiển thị Khung Xanh]        │                                     │
+                             │                  │                                     │
+                             └──────────┬───────┘                                     │
+                                        │                                             │
+                                        ▼                                             │
+                             [Hoàn thành bài luyện tập] ◄─────────────────────────────┘
+                                        │
+                                        ▼
+                                     (*) End
+```
+
+---
+
+## 2.6. SƠ ĐỒ THÀNH PHẦN VÀ TRIỂN KHAI (COMPONENT & DEPLOYMENT DIAGRAM)
+
+### 2.6.1. Sơ đồ Thành phần (Component Diagram)
+Hệ thống bao gồm 5 thành phần phần mềm độc lập:
+1. **Frontend App Component (`web-toeic-frontend`):** Chạy trên Vite Web Server, giao tiếp RESTful API với Gateway.
+2. **API Gateway Component (`api-gateway`):** Lắng nghe Port 4000, chứa các Module Proxy, Middleware JWT và CORS Header.
+3. **Account Service Component (`account-service`):** Lắng nghe Port 4001, xử lý Auth, Google GSI SDK, User CRUD.
+4. **Exam Service Component (`exam-service`):** Lắng nghe Port 4002, xử lý Question Reader, Exam Engine, Score Converter.
+5. **Catalog Service Component (`catalog-service`):** Lắng nghe Port 4003, xử lý Exam Publishing, Test Metadata.
+6. **AI Service Component (`ai-service`):** Lắng nghe Port 4004, xử lý Gemini REST Client, Prompt Formatter, Fallback Engine.
+
+### 2.6.2. Sơ đồ Triển khai Docker (Deployment Diagram)
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DOCKER HOST (Linux / Windows)                     │
+│                                                                             │
+│  ┌───────────────────────────────┐     ┌─────────────────────────────────┐  │
+│  │   web-luyen-thi-toeic-frontend│     │ web-luyen-thi-toeic-api-gateway │  │
+│  │   (Port 5173 / Nginx)         │     │ (Port 4000)                     │  │
+│  └──────────────┬────────────────┘     └────────────────┬────────────────┘  │
+│                 │                                       │                   │
+│                 └───────────────────┐                   │                   │
+│                                     ▼                   ▼                   │
+│  ┌───────────────────────────┬──────────────────────────┼────────────────┐  │
+│  │ Container account-service │ Container exam-service   │ Container AI   │  │
+│  │ (Port 4001)               │ (Port 4002)              │ (Port 4004)    │  │
+│  └─────────────┬─────────────┴────────────┬─────────────┴────────┬───────┘  │
+│                │                          │                      │          │
+│                ▼                          ▼                      ▼          │
+│  ┌───────────────────────────┬──────────────────────────┬────────────────┐  │
+│  │ Container auth-db         │ Container exam-db        │ Google Gemini  │  │
+│  │ (PostgreSQL Port 5433)    │ (PostgreSQL Port 5434)   │ Cloud API      │  │
+│  └───────────────────────────┴──────────────────────────┴────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```

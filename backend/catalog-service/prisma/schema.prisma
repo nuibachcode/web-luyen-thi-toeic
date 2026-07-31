@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Exam {
+  id              String   @id @default(uuid()) @db.Uuid
+  code            String   @unique @db.VarChar(100)
+  title           String   @db.VarChar(255)
+  description     String?
+  durationMinutes Int      @default(120) @map("duration_minutes") @db.SmallInt
+  status          String   @default("PUBLISHED") @db.VarChar(20)
+  questions       Json
+  createdBy       String?  @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  @@map("exams")
+}

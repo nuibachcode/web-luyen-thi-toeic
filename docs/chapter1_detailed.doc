@@ -1,0 +1,132 @@
+# CHƯƠNG 1: TÌM HIỂU VỀ CÔNG NGHỆ VÀ LÝ THUYẾT LIÊN QUAN
+
+---
+
+## 1.1. TỔNG QUAN VỀ ĐỀ TÀI VÀ THỰC TRẠNG ỨNG DỤNG
+
+### 1.1.1. Bối cảnh thực tế & Tầm quan trọng của chứng chỉ TOEIC
+Trong thời đại hội nhập quốc tế và chuyển đổi số mạnh mẽ, tiếng Anh đã trở thành công cụ giao tiếp bắt buộc trong môi trường doanh nghiệp. Chứng chỉ **TOEIC (Test of English for International Communication)** - đặc biệt là hai kỹ năng **Listening & Reading** - đã trở thành tiêu chuẩn vàng được hàng ngàn doanh nghiệp, tập đoàn đa quốc gia và các trường đại học tại Việt Nam sử dụng để đánh giá năng lực sử dụng tiếng Anh thương mại của sinh viên và người đi làm.
+
+Đề thi TOEIC định dạng mới bao gồm 200 câu hỏi chia làm 7 Part (Part 1 đến Part 4 thuộc phần Nghe - Listening; Part 5 đến Part 7 thuộc phần Đọc - Reading) thực hiện liên tục trong 120 phút. Bài thi đòi hỏi người học không chỉ có vốn từ vựng phong phú mà còn phải có kỹ năng phản xạ âm thanh, phân bổ thời gian và khả năng nhận diện các bẫy bối cảnh (distractor warnings) của đơn vị ra đề ETS.
+
+### 1.1.2. Phân tích thực trạng và hạn chế của các nền tảng luyện thi trực tuyến truyền thống
+Mặc dù hiện nay có nhiều website và ứng dụng hỗ trợ luyện thi TOEIC, nhưng qua khảo sát thực tế, đa số các hệ thống hiện hữu đang gặp phải những hạn chế lớn sau:
+1. **Nội dung đáp án tĩnh & thiếu tính giải thích sư phạm:** Hầu hết các website chỉ cung cấp đáp án đúng (ví dụ: Đáp án A) mà không giải thích chi tiết lý do tại sao đúng, tại sao các phương án B, C, D sai, gây khó khăn cho người tự học.
+2. **Thiếu tính cá nhân hóa & tương tác tức thì:** Học viên không có một "trợ lý" để hỏi đáp các thắc mắc về cấu trúc ngữ pháp hay từ vựng ngay khi đang làm bài.
+3. **Kiến trúc hệ thống cũ kỹ (Monolithic):** Các hệ thống cũ xây dựng theo dạng khối đơn lẻ (Monolithic), dễ bị nghẽn mạng hoặc sụp đổ toàn bộ hệ thống khi số lượng người dùng truy cập thi thử cùng lúc tăng cao.
+
+### 1.1.3. Tính cấp thiết và Mục tiêu nghiên cứu của Đề tài
+Xuất phát từ thực trạng trên, đề tài **"Xây dựng Hệ thống Website Luyện Thi TOEIC Thông Minh Tích Hợp Trí Tuệ Nhân Tạo (AeroTOEIC AI Portal)"** được triển khai nhằm giải quyết triệt để các vấn đề trên với các mục tiêu cốt lõi:
+- **Mục tiêu 1:** Ứng dụng mô hình Trí tuệ Nhân tạo Generative AI (Google Gemini AI) để đóng vai trò làm Trợ giảng 24/7, tự động suy luận real-time để dịch nghĩa, giải thích cấu trúc ngữ pháp, trích xuất bảng từ vựng có phiên âm IPA và đưa ra cảnh báo bẫy cho từng câu hỏi.
+- **Mục tiêu 2:** Áp dụng Kiến trúc vi dịch vụ (Microservices Architecture) kết hợp đóng gói Docker Container để đảm bảo tính sẵn sàng cao, khả năng mở rộng (scalability) và hiệu năng vượt trội.
+- **Mục tiêu 3:** Xây dựng giao diện người dùng hiện đại, tối ưu trải nghiệm học tập (UX/UI) với thời gian phản hồi dưới 100ms.
+
+---
+
+## 1.2. TÌM HIỂU VỀ KIẾN TRÚC HỆ THỐNG (SYSTEM ARCHITECTURE)
+
+### 1.2.1. Kiến trúc Đơn khối (Monolithic) vs Kiến trúc Vi dịch vụ (Microservices)
+- **Kiến trúc Monolithic:** Toàn bộ ứng dụng (Xác thực, Thi thử, Chấm điểm, Quản lý danh mục) được đóng gói chung trong một khối mã nguồn duy nhất. Tuy dễ triển khai ban đầu nhưng có nhược điểm lớn: khó mở rộng, nếu một phân hệ gặp sự cố sẽ kéo theo toàn bộ ứng dụng bị sập.
+- **Kiến trúc Microservices (Được lựa chọn):** Ứng dụng được chia nhỏ thành nhiều dịch vụ chạy độc lập, mỗi dịch vụ đảm nhận một miền nghiệp vụ duy nhất (Single Responsibility Principle). 
+  - *Ưu điểm:* Dễ dàng mở rộng độc lập từng dịch vụ (Scalability), cô lập lỗi (Fault Isolation), dễ bảo trì và cập nhật công nghệ mới mà không ảnh hưởng tới toàn hệ thống.
+
+```text
+[Monolithic Architecture]
+┌─────────────────────────────────────────────────────────────┐
+│ Auth Module + Exam Module + Catalog Module + Analytics Module │
+└─────────────────────────────────────────────────────────────┘
+                               ▲
+                               │ (Nếu lỗi 1 phần -> Sập toàn bộ)
+
+[Microservices Architecture]
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ account-service │  │  exam-service   │  │   ai-service    │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+ (Độc lập 100%, có Database riêng, ngắt kết nối không ảnh hưởng lẫn nhau)
+```
+
+### 1.2.2. Mô hình API Gateway Pattern & Cơ chế Định tuyến
+Trong mô hình Vi dịch vụ, Client không trực tiếp truy cập vào từng microservice bên trong mà thông qua một cổng tiếp nhận trung tâm là **API Gateway (Port 4000)**.
+- **Nhiệm vụ của API Gateway trong dự án:**
+  1. **Routing (Định tuyến):** Nhận request từ Client và điều hướng chính xác tới service đích (ví dụ: `/api/auth/*` -> `account-service:4001`; `/api/ai/*` -> `ai-service:4004`).
+  2. **Security & Authentication:** Xử lý xác thực Token JWT trước khi cho phép request đi sâu vào các dịch vụ bên trong.
+  3. **CORS & Rate Limiting:** Bảo vệ hệ thống khỏi các cuộc tấn công từ chối dịch vụ (DoS) với giới hạn 120 requests/phút.
+
+### 1.2.3. Lợi thế của Kiến trúc Đa cơ sở dữ liệu (Multi-Database Isolation)
+Dự án áp dụng mô hình **Database per Service** (Mỗi dịch vụ sở hữu cơ sở dữ liệu riêng):
+- `account-service` sở hữu cơ sở dữ liệu PostgreSQL `toeic_auth` (Port 5433).
+- `exam-service` sở hữu cơ sở dữ liệu PostgreSQL `toeic_exam` (Port 5434).
+- `catalog-service` sở hữu cơ sở dữ liệu PostgreSQL `toeic_catalog` (Port 5435).
+
+Cơ chế này ngăn chặn việc các dịch vụ can thiệp trực tiếp vào dữ liệu của nhau, đảm bảo tính bảo mật và độc lập tuyệt đối.
+
+---
+
+## 1.3. CÔNG NGHỆ PHÁT TRIỂN PHÍA KHÁCH (FRONTEND STACK)
+
+### 1.3.1. Ngôn ngữ TypeScript và Thư viện ReactJS 18 (SPA)
+- **ReactJS 18:** Thư viện JavaScript mã nguồn mở hàng đầu do Meta phát triển, sử dụng cơ chế **Virtual DOM** giúp tối ưu hóa hiệu năng render giao diện. Cơ chế Component-based cho phép tái sử dụng các thành phần UI (Buttons, Modals, Audio Players, Chat Widgets).
+- **TypeScript:** Ngôn ngữ mở rộng của JavaScript bổ sung cơ chế tĩnh kiểu dữ liệu (Static Typing). Việc sử dụng TypeScript giúp phát hiện sớm các lỗi cú pháp ngay trong quá trình lập trình (Compile-time), đảm bảo tính an toàn cho các đối tượng dữ liệu phức tạp như `Question`, `ExamResult`, `AIResponse`.
+
+### 1.3.2. Công cụ đóng gói siêu tốc Vite Build Tool
+Thay vì sử dụng Create React React (Webpack) truyền thống có tốc độ biên dịch chậm, dự án lựa chọn **Vite**:
+- Sử dụng **ES modules (ESM)** native trong trình duyệt giúp thời gian khởi chạy máy chủ phát triển (Dev Server) chỉ mất vài miligiây.
+- Tính năng **Hot Module Replacement (HMR)** cập nhật giao diện lập tức khi sửa code mà không làm mất trạng thái (State) hiện tại của bài thi.
+
+### 1.3.3. Phong cách Thiết kế Giao diện Aero Dynamic & Glassmorphism
+Giao diện ứng dụng được thiết kế theo các tiêu chuẩn UI/UX hiện đại:
+- **Glassmorphism:** Hiệu ứng kính mờ mịn màng (Backdrop blur) kết hợp độ viền đổ bóng (Box shadow) tạo cảm giác sang trọng.
+- **Aero Dynamic Theme:** Màu sắc được phối hợp hài hòa giữa xanh dương băng (Aero Blue `#2563eb`) và trắng bạc, mang lại cảm giác tập trung cao độ cho học viên khi luyện đề.
+
+---
+
+## 1.4. CÔNG NGHỆ PHÁT TRIỂN PHÍA MÁY CHỦ VÀ CƠ SỞ DỮ LIỆU (BACKEND & DATABASE STACK)
+
+### 1.4.1. Môi trường thực thi NodeJS & ExpressJS Framework
+- **NodeJS:** Môi trường chạy JavaScript phía máy chủ dựa trên V8 Engine của Google. Với cơ chế **Single-threaded Event Loop** và I/O bất đồng bộ (Non-blocking I/O), NodeJS xử lý cực kỳ hiệu quả hàng ngàn kết nối đồng thời.
+- **ExpressJS:** Framework tối giản nhẹ cho NodeJS, cung cấp các bộ xử lý Middleware mạnh mẽ cho định tuyến URL, đọc dữ liệu JSON và quản lý lỗi.
+
+### 1.4.2. Cơ sở dữ liệu quan hệ PostgreSQL 16
+- **PostgreSQL:** Hệ quản trị cơ sở dữ liệu quan hệ mã nguồn mở tiên tiến nhất hiện nay, tuân thủ nghiêm ngặt các nguyên lý **ACID** (Atomicity, Consistency, Isolation, Durability).
+- Hỗ trợ lưu trữ linh hoạt cả dữ liệu bảng quan hệ và dữ liệu bán cấu trúc `JSONB` (rất phù hợp để lưu mảng danh sách phương án A-B-C-D và câu trả lời của học viên).
+
+### 1.4.3. Công cụ ánh xạ ORM Prisma
+- **Prisma ORM:** Công cụ ORM thế hệ mới cho Node.js và TypeScript.
+- **Prisma Schema:** Cho phép định nghĩa Model dữ liệu rõ ràng bằng ngôn ngữ khai báo đơn giản.
+- **Prisma Client:** Tự động sinh ra bộ gõ mã lệnh TypeScript an toàn, tự động hóa việc kết nối CSDL và ngăn chặn tuyệt đối các lỗ hổng **SQL Injection**.
+
+---
+
+## 1.5. CÔNG NGHỆ TRÍ TUỆ NHÂN TẠO VÀ XỬ LÝ NGÔN NGỮ TỰ NHIÊN (AI & NLP)
+
+### 1.5.1. Giới thiệu Mô hình Ngôn ngữ Lớn Google Gemini AI
+Dự án tích hợp mô hình ngôn ngữ thế hệ mới nhất **Google Gemini AI (Gemini 2.0 / Flash)** thông qua Google AI Studio API:
+- Gemini Flash sở hữu tốc độ phản hồi cực nhanh (Latency < 1.5s), khả năng hiểu ngữ cảnh đa ngôn ngữ (Tiếng Anh - Tiếng Việt) và hiểu biết sâu sắc về cấu trúc đề thi TOEIC chuẩn ETS.
+
+### 1.5.2. Kỹ thuật Kỹ nghệ Câu lệnh (Prompt Engineering) & System Instructions
+Để AI không trả lời lan man hay sai lệch chuyên môn, dự án triển khai kỹ thuật **System Instruction**:
+- **Thiết lập Nhân vật (Persona):** Huấn luyện AI nhập vai *"AeroAI - Giảng viên Tiếng Anh TOEIC ETS 990"*.
+- **Quy tắc Kiểm soát Phản hồi (Control Rules):** 
+  - Chỉ tập trung giải thích ngữ pháp và từ vựng Tiếng Anh thương mại.
+  - Hạn chế sử dụng Icon/Emoji thừa rườm rà.
+  - Tuyệt đối không dùng các ký tự markdown rác như `###`, `***` gây rối mắt.
+  - Sử dụng gạch đầu dòng `-` đơn giản và rõ ràng.
+
+### 1.5.3. Xử lý Phản hồi Cấu trúc JSON & Thuật toán Smart Fallback
+- **Structured JSON Output:** Ép buộc AI trả về chuỗi JSON chuẩn có cấu trúc cố định (`translation`, `whyCorrect`, `vocabulary`, `trapWarning`) để Frontend render chính xác lên giao diện.
+- **Smart Fallback Engine:** Nếu máy chủ AI hoặc kết nối Internet gặp sự cố, hệ thống tự động chuyển sang bộ tạo lời giải quy chuẩn cục bộ, đảm bảo trải nghiệm thi của học viên không bao giờ bị ngắt quãng.
+
+---
+
+## 1.6. CÔNG NGHỆ ĐÓNG GÓI VÀ TỰ ĐỘNG HÓA VẬN HÀNH (CONTAINERIZATION)
+
+### 1.6.1. Công nghệ Đóng gói Container với Docker
+- **Docker Container:** Đóng gói toàn bộ mã nguồn, thư viện phụ thuộc (Node.js runtime, Prisma, npm packages) thành các hình ảnh (Docker Images) đóng kín.
+- Giải quyết triệt để lỗi kinh điển *"Code chạy được trên máy tôi nhưng không chạy được trên máy khác"*.
+
+### 1.6.2. Điều phối Đa dịch vụ với Docker Compose
+- **Docker Compose:** Sử dụng file khai báo `docker-compose.yml` để khởi chạy và kết nối mạng nội bộ (Bridge Network) giữa 8 Container cùng lúc:
+  - 4 Database Containers: `legacy-postgres`, `auth-db`, `exam-db`, `catalog-db`.
+  - 4 Microservice Containers: `account-service`, `exam-service`, `catalog-service`, `ai-service`.
+  - 1 Gateway Container: `api-gateway`.
+- Chỉ với 1 câu lệnh `docker-compose up -d`, toàn bộ hạ tầng Backend được kích hoạt chỉ trong vài giây.

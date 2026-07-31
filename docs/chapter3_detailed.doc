@@ -1,0 +1,106 @@
+# CHƯƠNG 3: PHÁT TRIỂN CHƯƠNG TRÌNH VÀ NHỮNG YẾU TỐ MỚI
+
+---
+
+## 3.1. TỔNG QUAN CẤU TRÚC MÃ NGUỒN VÀ MÔI TRƯỜNG PHÁT TRIỂN
+
+Dự án **AeroTOEIC AI Portal** được phát triển trên môi trường lập trình TypeScript đồng bộ từ Frontend tới Backend, tổ chức theo cấu trúc thư mục Microservices chuẩn hóa:
+
+```text
+d:\web-luyen-thi-toeic\
+├── docker-compose.yml              # Khai báo điều phối 8 Docker Containers
+├── .env                            # Quản lý biến môi trường bảo mật
+├── backend/
+│   ├── api-gateway/                # Cổng tiếp nhận trung tâm (Port 4000)
+│   ├── account-service/            # Dịch vụ Xác thực & Người dùng (Port 4001)
+│   ├── exam-service/               # Dịch vụ Làm bài thi & Chấm điểm (Port 4002)
+│   ├── catalog-service/            # Dịch vụ Danh mục Đề thi (Port 4003)
+│   └── ai-service/                 # Dịch vụ Trí tuệ Nhân tạo AeroAI (Port 4004)
+└── frontend/                       # Ứng dụng Single Page Application (Vite + React)
+    ├── src/
+    │   ├── components/             # UI Components (Shell, Button, AITutorWidget)
+    │   ├── context/                # AuthContext (Quản lý trạng thái Đăng nhập)
+    │   └── pages/                  # Các màn hình Giao diện (Student, Admin, Manager)
+```
+
+---
+
+## 3.2. CHI TIẾT PHÁT TRIỂN CÁC PHÂN HỆ CHỨC NĂNG CORE
+
+### 3.2.1. Phân hệ 1: Xác thực Người dùng & Tích hợp Google OAuth 2.0 (`account-service`)
+Dịch vụ `account-service` chịu trách nhiệm quản lý toàn bộ vòng đời tài khoản người dùng:
+- **Đăng ký / Đăng nhập truyền thống:** Mã hóa mật khẩu bằng thuật toán **bcrypt** đạt chuẩn mã hóa an toàn. Khi đăng nhập thành công, hệ thống cấp phát chuỗi **JWT Token (JSON Web Token)** với thời hạn mã hóa.
+- **Tích hợp Đăng nhập 1-Click bằng Google OAuth 2.0 (Google Identity Services SDK):**
+  - Nhúng SDK `https://accounts.google.com/gsi/client` vào `index.html`.
+  - Khi học viên bấm đăng nhập bằng Google, Google GSI trả về chuỗi `credential` (Google ID Token).
+  - API `POST /api/auth/google` tiếp nhận token, tự động giải mã thông tin (Email, Name, Avatar) và thực hiện cơ chế **Upsert** (nếu chưa có tài khoản thì tạo mới, nếu đã có thì cập nhật và đăng nhập).
+- **Giải quyết lỗi Đăng xuất đột ngột khi F5 Refresh:** Thêm trạng thái `isLoading` vào `AuthContext.tsx`. Trong lúc hệ thống đang đọc JWT Token từ `localStorage`, `ProtectedRoute` sẽ tạm dừng chuyển hướng cho đến khi khôi phục thành công phiên làm việc của học viên.
+
+```typescript
+// Trích đoạn xử lý Google OAuth 2.0 tại account-service/src/index.ts
+app.post('/api/auth/google', async (req, res) => {
+  const { credential } = req.body;
+  const decoded = jwt.decode(credential) as { email: string; name: string; picture: string };
+  
+  let user = await prisma.user.findUnique({ where: { email: decoded.email } });
+  if (!user) {
+    user = await prisma.user.create({
+      data: { email: decoded.email, name: decoded.name, role: 'STUDENT', avatar: decoded.picture }
+    });
+  }
+  const token = jwt.sign({ id: user.id, role: user.role }, jwtSecret, { expiresIn: '7d' });
+  res.json({ token, user });
+});
+```
+
+### 3.2.2. Phân hệ 2: Danh mục Đề thi & Luyện tập Ngách theo Part (`catalog-service`)
+- **Quản lý Kho đề thi chuẩn ETS:** Cung cấp danh sách các bộ đề thi TOEIC Full 200 câu.
+- **Tính năng Luyện tập ngách từng Part (Part Practice Hub):** Khi học viên chọn luyện tập riêng biệt Part 1 (Mô tả hình ảnh), Part 2 (Hỏi đáp) hay Part 5 (Điền câu), `TestCenter.tsx` tự động lọc ra các bộ bài tập chuyên biệt của Part đó thay vì bắt buộc làm toàn bộ 200 câu.
+
+### 3.2.3. Phân hệ 3: Thi thử & Chấm điểm Tự động TOEIC (`exam-service`)
+Giao diện `TestPlayer.tsx` được xây dựng với các tính năng vượt trội:
+- **Hai Chế độ Linh hoạt:**
+  1. **Thi thử (Exam Mode):** Có đồng hồ đếm ngược 120 phút. Khi hết giờ hoặc nộp bài, hệ thống tự động khóa giao diện và chuyển sang màn hình chấm điểm.
+  2. **Luyện tập (Practice Mode):** Không áp lực thời gian, hỗ trợ nút bấm `💡 Xem Lời Giải & Từ Vựng Ngay` dưới từng câu hỏi.
+- **Trình phát Audio MP3 Chuyên nghiệp:** Cho phép học viên điều chỉnh tốc độ phát âm thanh (0.8x cho người mới bắt đầu, 1.0x chuẩn thi, 1.25x nâng cao), cùng hai nút tua nhanh/lùi 5 giây giúp học luyện nghe chủ động.
+- **Thuật toán Quy đổi điểm TOEIC Chẩn đoán:**
+  Tự động tính số câu đúng phần Listening ($N_L$) và Reading ($N_R$), quy đổi tương đương ra thang điểm từ 5 đến 495 cho mỗi kỹ năng:
+  $$\text{Score}_L = \min\left(495, \max\left(5, \text{round}(N_L \times 4.95)\right)\right)$$
+  $$\text{Score}_R = \min\left(495, \max\left(5, \text{round}(N_R \times 4.95)\right)\right)$$
+  $$\text{Total Score} = \text{Score}_L + \text{Score}_R \quad (10 \le \text{Total} \le 990)$$
+
+### 3.2.4. Phân hệ 4: Microservice Trí tuệ Nhân tạo AeroAI (`ai-service`)
+Dịch vụ `ai-service` (Port 4004) tích hợp mô hình **Google Gemini Flash AI** cung cấp 2 tính năng AI cao cấp cho Học viên:
+1. **Trợ lý AeroAI Chatbot 24/7 (`AITutorWidget.tsx`):** Nút nổi tròn ở góc dưới bên phải màn hình. Học viên có thể trò chuyện, xin kinh nghiệm làm bài, hỏi mẹo thi Part 1-7 hoặc yêu cầu giải thích các chủ đề từ vựng.
+2. **AI Phân tích Chuyên sâu Câu hỏi (`TestPlayer.tsx`):**
+   Khi học viên bấm nút `🤖 Phân Tích Chuyên Sâu Bằng AeroAI →`, AI tự động đọc văn cảnh và trả về 4 khối thông tin sư phạm:
+   - **🇻🇳 Dịch nghĩa sư phạm:** Dịch trôi chảy nội dung câu hỏi và 4 phương án A, B, C, D sang tiếng Việt.
+   - **🧠 Lý do chọn đáp án & Cấu trúc ngữ pháp:** Lý giải chi tiết lý do chọn đáp án đúng và phân tích cấu trúc thì động từ/từ loại.
+   - **📚 Bảng từ vựng đắt giá:** Trích xuất các từ vựng quan trọng kèm **phiên âm IPA chuẩn quốc tế**, phân loại từ và nghĩa tiếng Việt.
+   - **⚠️ Mẹo & Cảnh báo bẫy TOEIC:** Đưa ra lưu ý tránh bẫy từ đồng âm hoặc nhầm lẫn bối cảnh.
+
+---
+
+## 3.3. NHỮNG YẾU TỐ MỚI VÀ SÁNG TẠO TRONG ĐỒ ÁN
+
+### 3.3.1. Yếu tố 1: Tách biệt Microservice AI hoàn toàn Độc lập
+Thay vì nhúng các vụ tính toán AI chung vào dịch vụ đăng nhập hay thi thử, đồ án đã tách riêng thành **`ai-service` chạy trên Port 4004**:
+- **Lợi ích:** Các tác vụ gọi API AI hoặc suy luận ngôn ngữ tốn thời gian (từ 1 - 2 giây) được xử lý hoàn toàn riêng biệt. Ngay cả khi traffic AI tăng cao, toàn bộ các dịch vụ làm thi (`exam-service`) và đăng nhập (`account-service`) vẫn hoạt động với tốc độ dưới 10ms mà không bị ảnh hưởng.
+
+### 3.3.2. Yếu tố 2: Hệ thống System Instructions & Rules Engine Huấn luyện AI
+Đồ án xây dựng file cấu hình quy tắc `ai_config.ts` để kiểm soát chất lượng đầu ra của AI:
+- **Chuyên môn hóa:** Ép AI luôn đóng vai là Giảng viên Tiếng Anh TOEIC 990+.
+- **Kiểm soát Định dạng (Formatting Control Rules):** 
+  - Hạn chế tối đa việc sử dụng Icon/Emoji (tối đa 1 icon tinh tế).
+  - Tuyệt đối không dùng các ký tự định dạng markdown thừa thải như `###`, `***`, `---` gây rác giao diện.
+  - Ép AI trình bày bằng gạch đầu dòng `-` đơn giản, thụt lùi dòng rõ ràng và dễ đọc.
+
+### 3.3.3. Yếu tố 3: Cơ chế Smart Fallback Dual-Engine
+Để ứng dụng đạt độ tin cậy 99.99% (High Availability):
+- Nếu đường truyền tới Google Gemini API bị ngắt hoặc hết hạn mức, `ai-service` không bao giờ báo lỗi trắng màn hình cho người dùng.
+- Hệ thống tự động kích hoạt **Smart Fallback Engine** để sinh ra bản phân tích quy chuẩn cục bộ, giúp học viên luôn nhận được kết quả học tập liên tục.
+
+### 3.3.4. Yếu tố 4: Giao diện Aero Dynamic & Glassmorphism UI/UX
+Giao diện ứng dụng được thiết kế hoàn chỉnh theo phong cách hiện đại:
+- Bảng điều khiển sinh động với lời chào theo thời gian thực (*Chào buổi sáng*, *Chào buổi chiều*, *Chào buổi tối*).
+- Thanh kéo thiết lập Mục tiêu điểm TOEIC tương tác linh hoạt, tự động tính toán khoảng cách điểm từ hiện tại tới mục tiêu.

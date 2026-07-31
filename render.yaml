@@ -1,0 +1,66 @@
+services:
+  - type: web
+    name: aerotoeic-api-gateway
+    env: docker
+    dockerfilePath: ./backend/api-gateway/Dockerfile
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: ACCOUNT_SERVICE_URL
+        value: http://localhost:4001
+      - key: EXAM_SERVICE_URL
+        value: http://localhost:4002
+      - key: CATALOG_SERVICE_URL
+        value: http://localhost:4003
+      - key: ANALYTICS_SERVICE_URL
+        value: http://localhost:4004
+      - key: AI_SERVICE_URL
+        value: http://localhost:4005
+
+  - type: web
+    name: aerotoeic-account-service
+    env: docker
+    dockerfilePath: ./backend/account-service/Dockerfile
+    envVars:
+      - key: PORT
+        value: 4001
+      - key: DATABASE_URL
+        value: postgresql://postgres:postgres@localhost:5432/auth_db?sslmode=require
+
+  - type: web
+    name: aerotoeic-exam-service
+    env: docker
+    dockerfilePath: ./backend/exam-service/Dockerfile
+    envVars:
+      - key: PORT
+        value: 4002
+      - key: DATABASE_URL
+        value: postgresql://postgres:postgres@localhost:5432/exam_db?sslmode=require
+
+  - type: web
+    name: aerotoeic-catalog-service
+    env: docker
+    dockerfilePath: ./backend/catalog-service/Dockerfile
+    envVars:
+      - key: PORT
+        value: 4003
+      - key: DATABASE_URL
+        value: postgresql://postgres:postgres@localhost:5432/catalog_db?sslmode=require
+
+  - type: web
+    name: aerotoeic-analytics-service
+    env: docker
+    dockerfilePath: ./backend/analytics-service/Dockerfile
+    envVars:
+      - key: PORT
+        value: 4004
+      - key: DATABASE_URL
+        value: postgresql://postgres:postgres@localhost:5432/analytics_db?sslmode=require
+
+  - type: web
+    name: aerotoeic-ai-service
+    env: docker
+    dockerfilePath: ./backend/ai-service/Dockerfile
+    envVars:
+      - key: PORT
+        value: 4005
