@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shell, Button } from '../../components/UI';
+import { Button } from '../../components/UI';
 import { useAuth } from '../../context/AuthContext';
 import { getApiGatewayUrl } from '../../config/api';
 
