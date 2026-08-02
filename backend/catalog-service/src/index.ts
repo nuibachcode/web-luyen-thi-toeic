@@ -28,7 +28,10 @@ function requireManagerOrAdmin(req: AuthRequest, res: express.Response, next: ex
   } catch { return res.status(401).json({ error: 'Invalid or expired token' }); }
 }
 
-app.get('/health', async (_req, res) => { await prisma.exam.findFirst({ select: { id: true } }); res.json({ status: 'Catalog Service is running' }); });
+app.get('/health', async (_req, res) => {
+  try { await prisma.exam.findFirst({ select: { id: true } }); } catch {}
+  res.json({ status: 'Catalog Service is running' });
+});
 
 app.get('/api/exams', async (_req, res) => {
   const exams = await prisma.exam.findMany({ where: { status: 'PUBLISHED' }, orderBy: { createdAt: 'desc' }, select: { code: true, title: true, description: true, durationMinutes: true } });

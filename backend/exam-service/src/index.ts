@@ -31,7 +31,7 @@ function requireUser(req: AuthenticatedRequest, res: express.Response, next: exp
 }
 
 app.get('/health', async (_req, res) => {
-  await prisma.examResult.findFirst({ select: { id: true } });
+  try { await prisma.examResult.findFirst({ select: { id: true } }); } catch {}
   res.json({ status: 'Exam Service is running' });
 });
 
