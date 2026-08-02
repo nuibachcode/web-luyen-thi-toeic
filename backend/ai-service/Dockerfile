@@ -1,9 +1,9 @@
 FROM node:22-alpine
 WORKDIR /app
-COPY package*.json ./
+COPY backend/ai-service/package*.json ./
 RUN npm install
-COPY tsconfig.json ./
-COPY src ./src
+COPY backend/ai-service/tsconfig.json ./
+COPY backend/ai-service/src ./src
 RUN npm run build
-EXPOSE 4004
+EXPOSE 4005
 CMD ["npm", "start"]
