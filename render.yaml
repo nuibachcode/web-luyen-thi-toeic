@@ -8,15 +8,15 @@ services:
       - key: PORT
         value: 4000
       - key: ACCOUNT_SERVICE_URL
-        value: http://localhost:4001
+        value: http://aerotoeic-account-service:4001
       - key: EXAM_SERVICE_URL
-        value: http://localhost:4002
+        value: http://aerotoeic-exam-service:4002
       - key: CATALOG_SERVICE_URL
-        value: http://localhost:4003
+        value: http://aerotoeic-catalog-service:4003
       - key: ANALYTICS_SERVICE_URL
-        value: http://localhost:4004
+        value: http://aerotoeic-analytics-service:4004
       - key: AI_SERVICE_URL
-        value: http://localhost:4005
+        value: http://aerotoeic-ai-service:4005
 
   - type: web
     name: aerotoeic-account-service
@@ -70,4 +70,3 @@ services:
     envVars:
       - key: PORT
         value: 4005
-
