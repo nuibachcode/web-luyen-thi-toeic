@@ -69,4 +69,9 @@ app.delete('/api/admin/exams/:code', requireManagerOrAdmin, async (req, res) => 
   }
 });
 
-prisma.$connect().then(() => app.listen(port, () => console.log(`Catalog Service listening on http://localhost:${port}`))).catch((error: any) => { console.error('Could not connect catalog-service database:', error); process.exit(1); });
+app.listen(port, () => {
+  console.log(`Catalog Service listening on port ${port}`);
+  prisma.$connect()
+    .then(() => console.log('Prisma connected to Database successfully'))
+    .catch((error: any) => console.error('Could not connect catalog-service database:', error));
+});

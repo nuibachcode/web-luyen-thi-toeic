@@ -637,9 +637,9 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
   }
 });
 
-prisma.$connect()
-  .then(() => app.listen(port, () => console.log(`Exam Service listening on http://localhost:${port}`)))
-  .catch((error) => {
-    console.error('Could not initialize exam-service database:', error);
-    process.exit(1);
-  });
+app.listen(port, () => {
+  console.log(`Exam Service listening on port ${port}`);
+  prisma.$connect()
+    .then(() => console.log('Prisma connected to Database successfully'))
+    .catch((error) => console.error('Could not initialize exam-service database:', error));
+});

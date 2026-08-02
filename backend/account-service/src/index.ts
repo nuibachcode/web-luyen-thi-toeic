@@ -312,6 +312,9 @@ Học viên hỏi: "${message}"`;
   }
 });
 
-prisma.$connect().then(() => app.listen(PORT, () => {
-  console.log(`Account Service is running on http://localhost:${PORT}`);
-}));
+app.listen(PORT, () => {
+  console.log(`Account Service is running on port ${PORT}`);
+  prisma.$connect()
+    .then(() => console.log('Prisma connected to Database successfully'))
+    .catch((error) => console.error('Prisma DB connection warning:', error));
+});
