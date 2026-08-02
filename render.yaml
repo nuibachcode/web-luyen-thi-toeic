@@ -24,6 +24,10 @@ services:
     envVars:
       - key: PORT
         value: 4001
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aerotoeic-db
+          property: connectionString
 
   - type: web
     name: aerotoeic-exam-service
@@ -33,6 +37,10 @@ services:
     envVars:
       - key: PORT
         value: 4002
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aerotoeic-db
+          property: connectionString
 
   - type: web
     name: aerotoeic-catalog-service
@@ -42,6 +50,10 @@ services:
     envVars:
       - key: PORT
         value: 4003
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aerotoeic-db
+          property: connectionString
 
   - type: web
     name: aerotoeic-ai-service
@@ -51,3 +63,9 @@ services:
     envVars:
       - key: PORT
         value: 4005
+
+databases:
+  - name: aerotoeic-db
+    plan: free
+    databaseName: toeic_db
+    user: toeic_user

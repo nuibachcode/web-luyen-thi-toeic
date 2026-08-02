@@ -8,4 +8,4 @@ COPY backend/catalog-service/tsconfig.json ./
 COPY backend/catalog-service/src ./src
 RUN npm run build
 EXPOSE 4003
-CMD ["sh", "-c", "(npx prisma db push --accept-data-loss || true) && npm start"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm start"]
