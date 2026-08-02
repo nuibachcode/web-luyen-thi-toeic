@@ -21,17 +21,23 @@ export default function Login({ signup = false }: { signup?: boolean }) {
   const [name, setName] = useState('');
   const [show, setShow] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '67147674187-1mdjm76om0dj9uj41a1pqj136emtgg93.apps.googleusercontent.com';
 
   useEffect(() => {
+    // Warmup ping on mount to wake up backend immediately
+    const gatewayUrl = getApiGatewayUrl();
+    fetch(`${gatewayUrl}/health`).catch(() => {});
+
     const handleGoogleCallback = async (response: any) => {
       if (!response?.credential) return;
       setIsLoading(true);
       setErrorMsg(null);
+      setLoadingText('Đang xác thực Google...');
       try {
-        const res = await fetch(`${getApiGatewayUrl()}/api/auth/google`, {
+        const res = await fetch(`${gatewayUrl}/api/auth/google`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: response.credential })
@@ -41,7 +47,7 @@ export default function Login({ signup = false }: { signup?: boolean }) {
         try {
           data = JSON.parse(text);
         } catch {
-          if (!res.ok) throw new Error('Máy chủ Backend API Gateway không phản hồi JSON hợp lệ (Cold Start hoặc 502 Bad Gateway). Vui lòng thử lại!');
+          if (!res.ok) throw new Error('Máy chủ Backend đang khởi động. Vui lòng thử lại sau vài giây!');
         }
         if (!res.ok) throw new Error(data.error || 'Đăng nhập Google thất bại');
         loginWithToken(data.token, data.user?.name, data.user?.email);
@@ -97,40 +103,60 @@ export default function Login({ signup = false }: { signup?: boolean }) {
     setIsLoading(true);
     setErrorMsg(null);
 
-    try {
-      const endpoint = signup ? '/api/auth/register' : '/api/auth/login';
-      const body = signup ? { email, password, name } : { email, password };
-      const gatewayUrl = getApiGatewayUrl();
-      
-      const res = await fetch(`${gatewayUrl}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+    const endpoint = signup ? '/api/auth/register' : '/api/auth/login';
+    const body = signup ? { email, password, name } : { email, password };
+    const gatewayUrl = getApiGatewayUrl();
+    const maxAttempts = 3;
 
-      const text = await res.text();
-      let data: any = {};
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        data = JSON.parse(text);
-      } catch {
+        if (attempt === 1) {
+          setLoadingText(signup ? 'Đang đăng ký...' : 'Đang đăng nhập...');
+        } else {
+          setLoadingText(`Đang kết nối máy chủ Cloud (Thử lại ${attempt}/${maxAttempts})...`);
+        }
+
+        const res = await fetch(`${gatewayUrl}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const text = await res.text();
+        let data: any = {};
+        try {
+          data = JSON.parse(text);
+        } catch {
+          if ((res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxAttempts) {
+            await new Promise(r => setTimeout(r, 2500));
+            continue;
+          }
+          throw new Error('Máy chủ Backend đang khởi động. Vui lòng chờ 10 giây và bấm đăng nhập lại!');
+        }
+
         if (!res.ok) {
-          throw new Error(`Máy chủ Backend Cloud (${res.status}) không kết nối được CSDL hoặc đang khởi động. Đường dẫn API Gateway: ${gatewayUrl}`);
+          if ((res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxAttempts) {
+            await new Promise(r => setTimeout(r, 2500));
+            continue;
+          }
+          throw new Error(data.error || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+        }
+
+        loginWithToken(data.token, data.user?.name, data.user?.email);
+
+        if (data.user?.role === 'SUPERADMIN') navigate('/admin');
+        else if (data.user?.role === 'MANAGER') navigate('/manager');
+        else navigate('/student');
+        setIsLoading(false);
+        return;
+      } catch (error: any) {
+        if (attempt === maxAttempts) {
+          setErrorMsg(error.message || 'Lỗi kết nối máy chủ backend');
+          setIsLoading(false);
+        } else {
+          await new Promise(r => setTimeout(r, 2500));
         }
       }
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
-      }
-
-      loginWithToken(data.token, data.user?.name, data.user?.email);
-
-      if (data.user?.role === 'SUPERADMIN') navigate('/admin');
-      else if (data.user?.role === 'MANAGER') navigate('/manager');
-      else navigate('/student');
-    } catch (error: any) {
-      setErrorMsg(error.message || 'Lỗi kết nối máy chủ backend');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -178,7 +204,7 @@ export default function Login({ signup = false }: { signup?: boolean }) {
           {!signup && <a className="forgot" href="javascript:void(0)">Quên mật khẩu?</a>}
           
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Đang gửi tới API Gateway...' : (signup ? 'Tạo tài khoản' : 'Đăng nhập')} →
+            {isLoading ? (loadingText || 'Đang kết nối...') : (signup ? 'Tạo tài khoản' : 'Đăng nhập')} →
           </Button>
           
           <div className="or"><span />hoặc<span /></div>

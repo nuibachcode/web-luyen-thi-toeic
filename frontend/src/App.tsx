@@ -11,6 +11,7 @@ import RoadmapPage from './pages/Student/RoadmapPage';
 import TestPlayer from './pages/Student/TestPlayer';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import ManagerDashboard from './pages/Manager/ManagerDashboard';
+import { getApiGatewayUrl } from './config/api';
 import './index.css';
 import type { JSX } from 'react/jsx-runtime';
 
@@ -75,6 +76,12 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    // Silent background warmup ping to wake up backend containers when user opens the app
+    const gatewayUrl = getApiGatewayUrl();
+    fetch(`${gatewayUrl}/health`, { method: 'GET' }).catch(() => {});
+  }, []);
+
   return (
     <AuthProvider>
       <Router>
