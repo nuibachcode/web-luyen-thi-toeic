@@ -4,10 +4,13 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./backend/api-gateway/Dockerfile
+    dockerContext: ./backend/api-gateway
     envVars:
       - key: PORT
         value: 4000
       - key: ACCOUNT_SERVICE_URL
+        value: http://aerotoeic-account-service:4001
+      - key: AUTH_SERVICE_URL
         value: http://aerotoeic-account-service:4001
       - key: EXAM_SERVICE_URL
         value: http://aerotoeic-exam-service:4002
@@ -21,6 +24,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./backend/account-service/Dockerfile
+    dockerContext: ./backend/account-service
     envVars:
       - key: PORT
         value: 4001
@@ -34,6 +38,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./backend/exam-service/Dockerfile
+    dockerContext: ./backend/exam-service
     envVars:
       - key: PORT
         value: 4002
@@ -47,6 +52,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./backend/catalog-service/Dockerfile
+    dockerContext: ./backend/catalog-service
     envVars:
       - key: PORT
         value: 4003
@@ -60,6 +66,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./backend/ai-service/Dockerfile
+    dockerContext: ./backend/ai-service
     envVars:
       - key: PORT
         value: 4005

@@ -1,11 +1,11 @@
 FROM node:22-alpine
 WORKDIR /app
-COPY backend/exam-service/package*.json ./
+COPY package*.json ./
 RUN npm install
-COPY backend/exam-service/prisma ./prisma
+COPY prisma ./prisma
 RUN npx prisma generate
-COPY backend/exam-service/tsconfig.json ./
-COPY backend/exam-service/src ./src
+COPY tsconfig.json ./
+COPY src ./src
 RUN npm run build
 EXPOSE 4002
 CMD ["sh", "-c", "(npx prisma db push --accept-data-loss || true) && npm start"]

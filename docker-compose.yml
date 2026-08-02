@@ -1,22 +1,9 @@
 version: '3.8'
 
 services:
-  legacy-postgres:
-    image: postgres:16
-    container_name: toeic_postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    restart: unless-stopped
-
   auth-db:
     image: postgres:16
+    container_name: toeic_auth_db
     environment:
       POSTGRES_USER: toeic_auth
       POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-change-me-auth}
@@ -29,6 +16,7 @@ services:
 
   exam-db:
     image: postgres:16
+    container_name: toeic_exam_db
     environment:
       POSTGRES_USER: toeic_exam
       POSTGRES_PASSWORD: ${EXAM_DB_PASSWORD:-change-me-exam}
@@ -41,6 +29,7 @@ services:
 
   catalog-db:
     image: postgres:16
+    container_name: toeic_catalog_db
     environment:
       POSTGRES_USER: toeic_catalog
       POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:-change-me-catalog}
@@ -52,25 +41,29 @@ services:
     restart: unless-stopped
 
   account-service:
-    build: ./backend/account-service
+    build:
+      context: ./backend/account-service
+      dockerfile: Dockerfile
+    container_name: toeic_account_service
     environment:
       PORT: 4001
       DATABASE_URL: postgresql://toeic_auth:${AUTH_DB_PASSWORD:-change-me-auth}@auth-db:5432/toeic_auth?schema=public
-      JWT_SECRET: super-secret-toeic-key
+      JWT_SECRET: ${JWT_SECRET:-super-secret-toeic-key}
+    ports:
+      - "4001:4001"
     depends_on:
       - auth-db
     restart: unless-stopped
 
   exam-service:
-    build: ./backend/exam-service
+    build:
+      context: ./backend/exam-service
+      dockerfile: Dockerfile
+    container_name: toeic_exam_service
     environment:
       PORT: 4002
-      DB_HOST: exam-db
-      DB_USER: toeic_exam
-      DB_PASSWORD: ${EXAM_DB_PASSWORD:-change-me-exam}
-      DB_NAME: toeic_exam
       DATABASE_URL: postgresql://toeic_exam:${EXAM_DB_PASSWORD:-change-me-exam}@exam-db:5432/toeic_exam?schema=public
-      JWT_SECRET: super-secret-toeic-key
+      JWT_SECRET: ${JWT_SECRET:-super-secret-toeic-key}
     ports:
       - "4002:4002"
     depends_on:
@@ -78,15 +71,14 @@ services:
     restart: unless-stopped
 
   catalog-service:
-    build: ./backend/catalog-service
+    build:
+      context: ./backend/catalog-service
+      dockerfile: Dockerfile
+    container_name: toeic_catalog_service
     environment:
       PORT: 4003
-      DB_HOST: catalog-db
-      DB_USER: toeic_catalog
-      DB_PASSWORD: ${CATALOG_DB_PASSWORD:-change-me-catalog}
-      DB_NAME: toeic_catalog
       DATABASE_URL: postgresql://toeic_catalog:${CATALOG_DB_PASSWORD:-change-me-catalog}@catalog-db:5432/toeic_catalog?schema=public
-      JWT_SECRET: super-secret-toeic-key
+      JWT_SECRET: ${JWT_SECRET:-super-secret-toeic-key}
     ports:
       - "4003:4003"
     depends_on:
@@ -94,23 +86,30 @@ services:
     restart: unless-stopped
 
   ai-service:
-    build: ./backend/ai-service
+    build:
+      context: ./backend/ai-service
+      dockerfile: Dockerfile
+    container_name: toeic_ai_service
     environment:
-      PORT: 4004
+      PORT: 4005
       GEMINI_API_KEY: ${GEMINI_API_KEY}
     ports:
-      - "4004:4004"
+      - "4005:4005"
     restart: unless-stopped
 
   api-gateway:
-    build: ./backend/api-gateway
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: toeic_api_gateway
     environment:
       PORT: 4000
-      JWT_SECRET: super-secret-toeic-key
+      JWT_SECRET: ${JWT_SECRET:-super-secret-toeic-key}
+      ACCOUNT_SERVICE_URL: http://account-service:4001
       AUTH_SERVICE_URL: http://account-service:4001
       EXAM_SERVICE_URL: http://exam-service:4002
       CATALOG_SERVICE_URL: http://catalog-service:4003
-      AI_SERVICE_URL: http://ai-service:4004
+      AI_SERVICE_URL: http://ai-service:4005
     ports:
       - "4000:4000"
     depends_on:
@@ -121,7 +120,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   auth_data:
   exam_data:
   catalog_data:

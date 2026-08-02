@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Logo, Button } from '../../components/UI';
+import { getApiGatewayUrl } from '../../config/api';
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: 8, verticalAlign: 'middle' }}>
@@ -12,8 +13,6 @@ const GoogleIcon = () => (
   </svg>
 );
 
-import { getApiGatewayUrl } from '../../config/api';
-
 export default function Login({ signup = false }: { signup?: boolean }) {
   const navigate = useNavigate();
   const { loginWithToken } = useAuth();
@@ -22,6 +21,7 @@ export default function Login({ signup = false }: { signup?: boolean }) {
   const [name, setName] = useState('');
   const [show, setShow] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '67147674187-1mdjm76om0dj9uj41a1pqj136emtgg93.apps.googleusercontent.com';
 
@@ -29,6 +29,7 @@ export default function Login({ signup = false }: { signup?: boolean }) {
     const handleGoogleCallback = async (response: any) => {
       if (!response?.credential) return;
       setIsLoading(true);
+      setErrorMsg(null);
       try {
         const res = await fetch(`${getApiGatewayUrl()}/api/auth/google`, {
           method: 'POST',
@@ -40,15 +41,15 @@ export default function Login({ signup = false }: { signup?: boolean }) {
         try {
           data = JSON.parse(text);
         } catch {
-          if (!res.ok) throw new Error('Máy chủ Backend Cloud đang khởi động (Cold Start). Vui lòng đợi 15-30 giây và thử lại!');
+          if (!res.ok) throw new Error('Máy chủ Backend API Gateway không phản hồi JSON hợp lệ (Cold Start hoặc 502 Bad Gateway). Vui lòng thử lại!');
         }
         if (!res.ok) throw new Error(data.error || 'Đăng nhập Google thất bại');
-        loginWithToken(data.token, data.user.name, data.user.email);
-        if (data.user.role === 'SUPERADMIN') navigate('/admin');
-        else if (data.user.role === 'MANAGER') navigate('/manager');
+        loginWithToken(data.token, data.user?.name, data.user?.email);
+        if (data.user?.role === 'SUPERADMIN') navigate('/admin');
+        else if (data.user?.role === 'MANAGER') navigate('/manager');
         else navigate('/student');
       } catch (err: any) {
-        alert(err.message);
+        setErrorMsg(err.message || 'Lỗi xác thực Google');
       } finally {
         setIsLoading(false);
       }
@@ -73,9 +74,6 @@ export default function Login({ signup = false }: { signup?: boolean }) {
               text: signup ? 'signup_with' : 'signin_with'
             });
           }
-
-          // Trigger One Tap popup if browser allows
-          (window as any).google.accounts.id.prompt();
         } catch (e) {
           console.warn('Google GSI init notice:', e);
         }
@@ -97,32 +95,40 @@ export default function Login({ signup = false }: { signup?: boolean }) {
   const handleStandardAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMsg(null);
+
     try {
       const endpoint = signup ? '/api/auth/register' : '/api/auth/login';
       const body = signup ? { email, password, name } : { email, password };
+      const gatewayUrl = getApiGatewayUrl();
       
-      const res = await fetch(`${getApiGatewayUrl()}${endpoint}`, {
+      const res = await fetch(`${gatewayUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
-        const text = await res.text();
-        let data: any = {};
-        try {
-          data = JSON.parse(text);
-        } catch {
-          if (!res.ok) throw new Error('Máy chủ Backend Cloud đang khởi động (Cold Start). Vui lòng đợi 15-30 giây và thử lại!');
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        if (!res.ok) {
+          throw new Error(`Máy chủ Backend Cloud (${res.status}) không kết nối được CSDL hoặc đang khởi động. Đường dẫn API Gateway: ${gatewayUrl}`);
         }
-        if (!res.ok) throw new Error(data.error || 'Xác thực thất bại. Vui lòng kiểm tra lại.');
+      }
 
-      loginWithToken(data.token, data.user.name, data.user.email);
+      if (!res.ok) {
+        throw new Error(data.error || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      }
 
-      if (data.user.role === 'SUPERADMIN') navigate('/admin');
-      else if (data.user.role === 'MANAGER') navigate('/manager');
+      loginWithToken(data.token, data.user?.name, data.user?.email);
+
+      if (data.user?.role === 'SUPERADMIN') navigate('/admin');
+      else if (data.user?.role === 'MANAGER') navigate('/manager');
       else navigate('/student');
     } catch (error: any) {
-      alert(error.message);
+      setErrorMsg(error.message || 'Lỗi kết nối máy chủ backend');
     } finally {
       setIsLoading(false);
     }
@@ -146,6 +152,15 @@ export default function Login({ signup = false }: { signup?: boolean }) {
           <h2>{signup ? 'Tạo tài khoản' : 'Chào mừng trở lại!'}</h2>
           <p>{signup ? 'Chỉ mất một phút để bắt đầu lộ trình của bạn.' : 'Đăng nhập để tiếp tục hành trình học tập.'}</p>
           
+          {errorMsg && (
+            <div style={{
+              background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b',
+              padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.5
+            }}>
+              ⚠️ {errorMsg}
+            </div>
+          )}
+
           {signup && (
             <label>Họ và tên
               <input value={name} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" required />
@@ -163,12 +178,12 @@ export default function Login({ signup = false }: { signup?: boolean }) {
           {!signup && <a className="forgot" href="javascript:void(0)">Quên mật khẩu?</a>}
           
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Đang xử lý...' : (signup ? 'Tạo tài khoản' : 'Đăng nhập')} →
+            {isLoading ? 'Đang gửi tới API Gateway...' : (signup ? 'Tạo tài khoản' : 'Đăng nhập')} →
           </Button>
           
           <div className="or"><span />hoặc<span /></div>
           
-          {/* Official Google One-Tap / Rendered Button with Fallback */}
+          {/* Official Google One-Tap / Rendered Button */}
           <div id="googleSignInBtnDiv" style={{ width: '100%', minHeight: '44px', display: 'flex', justifyContent: 'center' }}>
             <button
               type="button"
@@ -176,7 +191,7 @@ export default function Login({ signup = false }: { signup?: boolean }) {
                 if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
                   (window as any).google.accounts.id.prompt();
                 } else {
-                  alert('Đang kết nối tới Dịch vụ Đăng nhập Google. Vui lòng thử lại sau giây lát!');
+                  setErrorMsg('Đang tải thư viện Google SDK. Vui lòng thử lại sau giây lát!');
                 }
               }}
               style={{
