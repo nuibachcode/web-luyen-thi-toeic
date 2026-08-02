@@ -87,6 +87,8 @@ app.use('/api/exams', (req, res, next) => {
 });
 
 app.use('/api/analytics', verifyJwt, analyticsProxy);
+app.use('/api/ai', aiProxy);
+
 // Keep-Alive Ping every 4 minutes to prevent Render Free-tier cold starts
 setInterval(() => {
   const accountUrl = process.env.ACCOUNT_SERVICE_URL || 'https://aerotoeic-account-service.onrender.com';
