@@ -6,6 +6,6 @@ COPY prisma ./prisma
 RUN npx prisma generate
 COPY tsconfig.json ./
 COPY src ./src
-RUN npm run build
+RUN npx tsc
 EXPOSE 4002
 CMD ["sh", "-c", "(npx prisma db push --accept-data-loss || true) && npm start"]
