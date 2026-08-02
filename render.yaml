@@ -9,15 +9,15 @@ services:
       - key: PORT
         value: 4000
       - key: ACCOUNT_SERVICE_URL
-        value: http://aerotoeic-account-service:4001
+        value: https://aerotoeic-account-service.onrender.com
       - key: AUTH_SERVICE_URL
-        value: http://aerotoeic-account-service:4001
+        value: https://aerotoeic-account-service.onrender.com
       - key: EXAM_SERVICE_URL
-        value: http://aerotoeic-exam-service:4002
+        value: https://aerotoeic-exam-service.onrender.com
       - key: CATALOG_SERVICE_URL
-        value: http://aerotoeic-catalog-service:4003
+        value: https://aerotoeic-catalog-service.onrender.com
       - key: AI_SERVICE_URL
-        value: http://aerotoeic-ai-service:4005
+        value: https://aerotoeic-ai-service.onrender.com
 
   - type: web
     name: aerotoeic-account-service
