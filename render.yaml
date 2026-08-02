@@ -2,6 +2,7 @@ services:
   - type: web
     name: aerotoeic-api-gateway
     env: docker
+    plan: free
     dockerfilePath: ./backend/api-gateway/Dockerfile
     envVars:
       - key: PORT
@@ -20,6 +21,7 @@ services:
   - type: web
     name: aerotoeic-account-service
     env: docker
+    plan: free
     dockerfilePath: ./backend/account-service/Dockerfile
     envVars:
       - key: PORT
@@ -30,6 +32,7 @@ services:
   - type: web
     name: aerotoeic-exam-service
     env: docker
+    plan: free
     dockerfilePath: ./backend/exam-service/Dockerfile
     envVars:
       - key: PORT
@@ -40,6 +43,7 @@ services:
   - type: web
     name: aerotoeic-catalog-service
     env: docker
+    plan: free
     dockerfilePath: ./backend/catalog-service/Dockerfile
     envVars:
       - key: PORT
@@ -50,6 +54,7 @@ services:
   - type: web
     name: aerotoeic-analytics-service
     env: docker
+    plan: free
     dockerfilePath: ./backend/analytics-service/Dockerfile
     envVars:
       - key: PORT
@@ -60,7 +65,9 @@ services:
   - type: web
     name: aerotoeic-ai-service
     env: docker
+    plan: free
     dockerfilePath: ./backend/ai-service/Dockerfile
     envVars:
       - key: PORT
         value: 4005
+
