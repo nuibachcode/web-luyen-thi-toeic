@@ -314,7 +314,7 @@ export default function TestCenter() {
                     letterSpacing: '-0.5px'
                   }}
                 >
-                  TOEIC<br/>#{i + 1}
+                  TOEIC {i + 1}
                 </div>
                 
                 <div style={{ flex: 1 }}>

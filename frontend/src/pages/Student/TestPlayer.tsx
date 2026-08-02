@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Shell } from '../../components/UI';
 
@@ -330,18 +330,7 @@ export default function TestPlayer() {
     <div style={{ background: '#f1f5f9', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Inter', Arial, sans-serif", overflow: 'hidden', height: '100vh' }}>
       
       {/* HEADER BAR */}
-      <header style={{ 
-        height: '64px', 
-        background: '#1e293b', 
-        color: '#fff', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        padding: '0 24px', 
-        flexShrink: 0,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        zIndex: 100
-      }}>
+      <header className="exam-player-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button 
             onClick={() => { if (window.confirm('Bạn có muốn thoát khỏi phòng thi? Các đáp án chưa nộp có thể không được lưu.')) navigate('/student/tests'); }}
@@ -365,13 +354,13 @@ export default function TestPlayer() {
         </div>
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           {mode === 'exam' && !isSubmitted && (
             <div style={{ 
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px', 
-              fontSize: '16px', 
+              fontSize: '15px', 
               fontWeight: 800, 
               color: isDangerTimer ? '#ef4444' : '#fbbf24',
               padding: '6px 12px',
@@ -388,7 +377,7 @@ export default function TestPlayer() {
             onClick={() => setShowMatrixSidebar(!showMatrixSidebar)}
             style={{ background: showMatrixSidebar ? '#334155' : '#0f172a', color: '#fff', border: '1px solid #475569', padding: '8px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <span>📋 Bảng đáp án ({answeredCount}/{questions.length})</span>
+            <span>📋 Đáp án ({answeredCount}/{questions.length})</span>
           </button>
 
           {!isSubmitted ? (
@@ -408,13 +397,13 @@ export default function TestPlayer() {
 
       {/* RESULTS BANNER WHEN SUBMITTED */}
       {isSubmitted && scoreData && (
-        <div style={{ background: '#0f172a', color: '#fff', padding: '20px 30px', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ background: '#0f172a', color: '#fff', padding: '20px 30px', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <span style={{ color: '#38bdf8', fontSize: '12px', fontWeight: 700, letterSpacing: '1px' }}>KẾT QUẢ BÀI THI CỦA BẠN</span>
             <h2 style={{ fontSize: '32px', fontWeight: 800, margin: '4px 0', color: '#fbbf24' }}>
               Tổng điểm: {scoreData.total} <span style={{ fontSize: '18px', color: '#94a3b8', fontWeight: 500 }}>/ 990</span>
             </h2>
-            <div style={{ display: 'flex', gap: '25px', color: '#cbd5e1', fontSize: '14px' }}>
+            <div style={{ display: 'flex', gap: '25px', color: '#cbd5e1', fontSize: '14px', flexWrap: 'wrap' }}>
               {scoreData.listTotal > 0 && <div>🎧 Listening: <b style={{ color: '#fff' }}>{scoreData.lScore}</b> (Đúng {scoreData.listCorrect}/{scoreData.listTotal})</div>}
               {scoreData.readTotal > 0 && <div>📖 Reading: <b style={{ color: '#fff' }}>{scoreData.rScore}</b> (Đúng {scoreData.readCorrect}/{scoreData.readTotal})</div>}
             </div>
@@ -429,7 +418,7 @@ export default function TestPlayer() {
       <main style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         
         {/* 2-COLUMN SPLIT SCREEN CONTENT (Left 50%, Right 50%) */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', padding: '16px 20px', overflow: 'hidden' }}>
+        <div className="exam-workspace-grid">
           
           {/* COLUMN 1: LEFT PASSAGE / AUDIO & IMAGE AREA */}
           <section style={{ background: '#fff', borderRadius: '12px', border: '1px solid #cbd5e1', padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
@@ -819,18 +808,7 @@ export default function TestPlayer() {
 
         {/* EXPANDABLE 200-QUESTION MATRIX SIDEBAR DRAWER */}
         {showMatrixSidebar && (
-          <section style={{ 
-            width: '310px', 
-            background: '#ffffff', 
-            borderLeft: '2px solid #cbd5e1', 
-            padding: '20px', 
-            overflowY: 'auto',
-            boxShadow: '-4px 0 16px rgba(0,0,0,0.05)',
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            zIndex: 50
-          }}>
+          <section className="exam-matrix-sidebar">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '2px solid #f1f5f9', paddingBottom: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
                 Bảng {questions.length} Câu Hỏi

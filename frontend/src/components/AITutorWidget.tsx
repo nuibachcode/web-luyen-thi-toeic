@@ -94,14 +94,15 @@ export default function AITutorWidget() {
   };
 
   return (
-    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999, fontFamily: 'sans-serif' }}>
+    <div style={{ position: 'fixed', bottom: '16px', right: '16px', zIndex: 9999, fontFamily: 'sans-serif' }}>
       {/* Chat Window Popup */}
       {isOpen && (
         <div 
           className="animate-fade-in"
           style={{
-            width: '380px',
+            width: 'min(380px, calc(100vw - 32px))',
             height: '540px',
+            maxHeight: 'calc(100vh - 90px)',
             background: '#ffffff',
             borderRadius: '18px',
             boxShadow: '0 12px 36px rgba(0,0,0,0.18)',
@@ -109,7 +110,7 @@ export default function AITutorWidget() {
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            marginBottom: '16px'
+            marginBottom: '12px'
           }}
         >
           {/* Header */}

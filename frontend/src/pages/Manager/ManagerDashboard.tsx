@@ -1,5 +1,5 @@
 import { Shell } from '../../components/UI';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 import ManagerOverview from './ManagerOverview';
 import ManagerStudents from './ManagerStudents';
@@ -9,7 +9,6 @@ import ManagerSettings from './ManagerSettings';
 
 export default function ManagerDashboard() {
   const location = useLocation();
-  const navigate = useNavigate();
 
   const subpage = location.pathname.includes('reports') ? 'reports'
     : location.pathname.includes('users') ? 'users'

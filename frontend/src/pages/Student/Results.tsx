@@ -107,7 +107,7 @@ export default function Results() {
               <span style={{ fontSize: '16px', color: '#64748b', fontWeight: 600 }}>bài thi</span>
             </div>
             <span style={{ fontSize: '13px', color: '#64748b' }}>
-              Được lưu trữ trong CSDL PostgreSQL
+              Tỷ lệ làm bài chính xác trung bình: <b>{overallAccuracy}%</b>
             </span>
           </div>
         </section>

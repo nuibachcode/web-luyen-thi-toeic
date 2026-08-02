@@ -338,7 +338,17 @@ export default function ManagerExams() {
 
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Tổng số: <b>{filteredExams.length} đề thi</b></span>
         </div>
-        <div style={{ display: 'flex', gap: 10, marginRight: '16px', marginTop: '16px' }}>
+        <div style={{ display: 'flex', gap: 10, marginRight: '16px', marginTop: '16px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleOpenCreate}
+            style={{
+              padding: '9px 18px', borderRadius: 8, background: '#10b981', color: '#ffffff',
+              fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6,
+              boxShadow: '0 4px 12px rgba(16,185,129,0.3)'
+            }}
+          >
+            ➕ Tạo Đề Thi Mới
+          </button>
           <button
             onClick={handleOpenImport}
             style={{
@@ -593,7 +603,12 @@ export default function ManagerExams() {
             {loadingQuestions ? (
               <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Đang tải 200 câu hỏi từ CSDL...</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
+              <>
+                <div style={{ fontSize: 13, color: '#475569', marginBottom: 12, fontWeight: 600 }}>
+                  📌 Đã nạp {currentPartQuestions.length} câu hỏi thuộc Part {activePart}.
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
                 {/* QUESTION NUMBER SELECTOR SIDEBAR */}
                 <div style={{ borderRight: '1px solid #e2e8f0', paddingRight: 16, maxHeight: '60vh', overflowY: 'auto' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
@@ -706,10 +721,11 @@ export default function ManagerExams() {
                   </div>
                 </form>
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
-      )}
+      </div>
+    )}
     </section>
   );
 }

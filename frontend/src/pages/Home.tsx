@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Logo, Button } from '../components/UI';
 import { useAuth } from '../context/AuthContext';
@@ -5,8 +6,10 @@ import { useAuth } from '../context/AuthContext';
 export default function Home() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleStart = () => {
+    setIsMobileMenuOpen(false);
     if (user) {
       if (user.role === 'SUPERADMIN') navigate('/admin/users');
       else if (user.role === 'MANAGER') navigate('/manager');
@@ -36,8 +39,44 @@ export default function Home() {
               <Button onClick={handleStart}>Bắt đầu miễn phí →</Button>
             </>
           )}
+          <button 
+            className="marketing-mobile-toggle"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            title="Menu"
+          >
+            {isMobileMenuOpen ? '✕' : '☰'}
+          </button>
         </div>
       </header>
+
+      {/* Mobile Header Menu Drawer */}
+      {isMobileMenuOpen && (
+        <div style={{
+          position: 'fixed',
+          top: '72px',
+          left: 0,
+          right: 0,
+          background: '#ffffff',
+          borderBottom: '1px solid var(--line)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          zIndex: 999
+        }}>
+          <a href="/" onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); navigate('/'); }} style={{ fontWeight: 600, fontSize: '15px', color: '#1e293b' }}>🏠 Trang chủ</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); navigate(user ? '/student/roadmap' : '/login'); }} style={{ fontWeight: 600, fontSize: '15px', color: '#1e293b' }}>🚀 Lộ trình AI</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); navigate(user ? '/student/tests' : '/login'); }} style={{ fontWeight: 600, fontSize: '15px', color: '#1e293b' }}>◫ Thi thử TOEIC</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); navigate(user ? '/student/results' : '/login'); }} style={{ fontWeight: 600, fontSize: '15px', color: '#1e293b' }}>◔ Kết quả học tập</a>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', paddingTop: '16px', borderTop: '1px solid var(--line)' }}>
+            {!user && (
+              <Button variant="outline" onClick={() => { setIsMobileMenuOpen(false); navigate('/login'); }}>Đăng nhập</Button>
+            )}
+            <Button onClick={handleStart}>{user ? 'Vào Học Ngay →' : 'Bắt đầu miễn phí →'}</Button>
+          </div>
+        </div>
+      )}
 
       <main className="landing">
         {/* Hero Section */}

@@ -41,6 +41,17 @@ export default function ManagerSettings() {
             style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-muted)', fontSize: 15 }} 
           />
         </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>
+          Giới hạn số học viên tối đa
+          <input 
+            type="number"
+            value={maxStudents} 
+            onChange={e => setMaxStudents(Number(e.target.value))}
+            style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 15 }} 
+            required
+          />
+        </label>
         {msg && (
           <div style={{ background: '#dcfce7', color: '#166534', padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
             {msg}

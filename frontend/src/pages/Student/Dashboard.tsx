@@ -117,25 +117,41 @@ export default function Dashboard() {
     ? 'Tập trung luyện nghe hội thoại và bài nói ngắn để nâng phản xạ từ vựng.'
     : 'Củng cố ngữ pháp điền câu ngắn Part 5 và kỹ năng đọc nhanh Part 7.';
 
+  const [activeLessonDay, setActiveLessonDay] = useState<number | null>(null);
+
   return (
     <Shell page="/student">
       <div className="content">
-        <div className="page-title">
-          <div>
-            <span className="eyebrow">HÔM NAY</span>
-            <h1>{greeting}, {user?.name || 'Học viên'}! <span>👋</span></h1>
-            <p>Hôm nay là một ngày tuyệt vời để tiến gần hơn tới mục tiêu TOEIC của bạn.</p>
-          </div>
-          <Button onClick={() => navigate('/student/tests')}>Bắt đầu luyện tập →</Button>
-        </div>
+        {!activeLessonDay && (
+          <>
+            <div className="page-title">
+              <div>
+                <span className="eyebrow">HÔM NAY</span>
+                <h1>{greeting}, {user?.name || 'Học viên'}! <span>👋</span></h1>
+                <p>Hôm nay là một ngày tuyệt vời để tiến gần hơn tới mục tiêu TOEIC của bạn.</p>
+              </div>
+              <Button onClick={() => navigate('/student/tests')}>Bắt đầu luyện tập →</Button>
+            </div>
+            
+            <section className="stats">
+              <Stat icon="◫" label="Mục tiêu TOEIC" value={`${stats.targetScore}`} note={stats.totalTests > 0 ? `Tiến độ ${progressPercent}%` : 'Đã thiết lập'} />
+              <Stat icon="◔" label="Dự báo hiện tại" value={`${currentScore}`} note={stats.totalTests > 0 ? `Đã hoàn thành ${stats.totalTests} bài thi` : 'Chưa thi bài nào'} tone="green" />
+              <Stat icon="🔥" label="Chuỗi ngày học" value={`${stats.streakDays} ngày`}  />
+            </section>
+
+            {/* AI Recommendation Banner */}
+            <section className="card recommendation" style={{ marginBottom: 20 }}>
+              <span className="spark">💡</span>
+              <div>
+                <h3>Gợi ý tập trung hôm nay: {recTitle}</h3>
+                <p>{recDesc}</p>
+                <Progress value={progressPercent} color="blue" />
+              </div>
+            </section>
+          </>
+        )}
         
-        <section className="stats">
-          <Stat icon="◫" label="Mục tiêu TOEIC" value={`${stats.targetScore}`} note={stats.totalTests > 0 ? `Còn ${Math.max(0, stats.targetScore - currentScore)} điểm` : 'Đã thiết lập'} />
-          <Stat icon="◔" label="Dự báo hiện tại" value={`${currentScore}`} note={stats.totalTests > 0 ? `Đã hoàn thành ${stats.totalTests} bài thi` : 'Chưa thi bài nào'} tone="green" />
-          <Stat icon="🔥" label="Chuỗi ngày học" value={`${stats.streakDays} ngày`}  />
-        </section>
-        
-        <AIRoadmapWidget />
+        <AIRoadmapWidget onActiveDayChange={setActiveLessonDay} />
       </div>
     </Shell>
   );

@@ -51,7 +51,7 @@ type MasterRoadmap = {
   days: DayOverview[];
 };
 
-export default function AIRoadmapWidget() {
+export default function AIRoadmapWidget({ onActiveDayChange }: { onActiveDayChange?: (activeDay: number | null) => void }) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [loadingLesson, setLoadingLesson] = useState(false);
@@ -74,6 +74,10 @@ export default function AIRoadmapWidget() {
 
   const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
   const token = localStorage.getItem('toeic_jwt');
+
+  useEffect(() => {
+    onActiveDayChange?.(activeDay);
+  }, [activeDay, onActiveDayChange]);
 
   useEffect(() => {
     // Read saved target score from localStorage
@@ -834,10 +838,10 @@ export default function AIRoadmapWidget() {
                 </span>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <h5 style={{ margin: '0 0 2px 0', fontSize: '14px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <h5 style={{ margin: '0 0 3px 0', fontSize: '14px', fontWeight: 700, color: '#0f172a', lineHeight: 1.45, wordBreak: 'break-word' }}>
                     {d.title}
                   </h5>
-                  <span style={{ fontSize: '12.5px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+                  <span style={{ fontSize: '12.5px', color: '#64748b', lineHeight: 1.4, wordBreak: 'break-word', display: 'block' }}>
                     💡 {d.focus}
                   </span>
                 </div>

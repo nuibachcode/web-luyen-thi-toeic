@@ -107,6 +107,7 @@ const managerNav = [
 export function Shell({ children, page }: { children: React.ReactNode; page: string }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   
   let nav = studentNav;
   let roleTitle = '';
@@ -120,25 +121,38 @@ export function Shell({ children, page }: { children: React.ReactNode; page: str
 
   const handleLogout = () => {
     if (window.confirm('Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?')) {
+      setIsMobileMenuOpen(false);
       logout();
       navigate('/');
     }
   };
 
   const handleProfileClick = () => {
+    setIsMobileMenuOpen(false);
     if (user?.role === 'SUPERADMIN') navigate('/admin/settings');
     else if (user?.role === 'MANAGER') navigate('/manager/settings');
     else navigate('/student/profile');
   };
 
+  const handleNavClick = (path: string) => {
+    setIsMobileMenuOpen(false);
+    navigate(path);
+  };
+
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      {/* Mobile Drawer Backdrop */}
+      <div 
+        className={`sidebar-backdrop ${isMobileMenuOpen ? 'active' : ''}`} 
+        onClick={() => setIsMobileMenuOpen(false)} 
+      />
+      
+      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <Logo />
         <div className="role">{roleTitle}</div>
         <nav>
           {nav.map(([path, icon, label]) => (
-            <button key={path} className={page === path ? 'active' : ''} onClick={() => navigate(path)}>
+            <button key={path} className={page === path ? 'active' : ''} onClick={() => handleNavClick(path)}>
               <i>{icon}</i>{label}
             </button>
           ))}
@@ -149,9 +163,16 @@ export function Shell({ children, page }: { children: React.ReactNode; page: str
           </button>
         </div>
       </aside>
+
       <main className="workspace">
         <header className="topbar">
-          <button className="mobile-menu">☰</button>
+          <button 
+            className="mobile-menu" 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            title="Bật/Tắt Menu"
+          >
+            ☰
+          </button>
           <div></div>
           <button className="avatar" onClick={handleProfileClick} title="Hồ sơ / Cài đặt">
             {user?.name ? user.name.substring(0, 2).toUpperCase() : 'ME'}
