@@ -15,6 +15,26 @@ type AuthRequest = express.Request & { user?: { id: string; role: string } };
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 
+async function seedDefaultExams() {
+  try {
+    const count = await prisma.exam.count();
+    if (count === 0) {
+      const defaultExams = [
+        { code: 'toeic-test-01', title: 'TOEIC ETS 2024 - Test 01', description: 'Đề thi thử TOEIC ETS 2024 chuẩn cấu trúc 200 câu Listening & Reading', durationMinutes: 120, status: 'PUBLISHED', createdBy: 'system' },
+        { code: 'toeic-test-02', title: 'TOEIC ETS 2024 - Test 02', description: 'Đề luyện tập chuyên sâu Part 1-7 ETS 2024', durationMinutes: 120, status: 'PUBLISHED', createdBy: 'system' },
+        { code: 'toeic-test-03', title: 'TOEIC ETS 2023 - Test 01', description: 'Bộ đề thi ETS 2023 thực chiến cập nhật mới nhất', durationMinutes: 120, status: 'PUBLISHED', createdBy: 'system' },
+        { code: 'ets-imported-test', title: 'TOEIC ETS Thực Chiến 990+', description: 'Đề thi bứt phá điểm số cao cấp tích hợp cURL Importer', durationMinutes: 120, status: 'PUBLISHED', createdBy: 'system' }
+      ];
+      for (const e of defaultExams) {
+        await prisma.exam.create({ data: e });
+      }
+      console.log('Seeded default TOEIC practice exams into Catalog database');
+    }
+  } catch (err) {
+    console.warn('Seed default exams notice:', err);
+  }
+}
+
 function requireManagerOrAdmin(req: AuthRequest, res: express.Response, next: express.NextFunction) {
   const token = req.header('authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return res.status(401).json({ error: 'Authentication required' });
@@ -72,6 +92,9 @@ app.delete('/api/admin/exams/:code', requireManagerOrAdmin, async (req, res) => 
 app.listen(port, () => {
   console.log(`Catalog Service listening on port ${port}`);
   prisma.$connect()
-    .then(() => console.log('Prisma connected to Database successfully'))
+    .then(async () => {
+      console.log('Prisma connected to Database successfully');
+      await seedDefaultExams();
+    })
     .catch((error: any) => console.error('Could not connect catalog-service database:', error));
 });
