@@ -21,6 +21,42 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'dummy-google-client-id
 
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
+async function seedDefaultAccounts() {
+  try {
+    const adminEmail = 'admin@toeic.com';
+    const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
+    if (!existingAdmin) {
+      const hash = await bcrypt.hash('password123', 10);
+      await prisma.user.create({
+        data: { email: adminEmail, name: 'Quản trị viên Admin', passwordHash: hash, role: 'SUPERADMIN', tenantId: 'tenant-demo' }
+      });
+      console.log('Seeded default account admin@toeic.com');
+    }
+
+    const managerEmail = 'manager@center.com';
+    const existingManager = await prisma.user.findUnique({ where: { email: managerEmail } });
+    if (!existingManager) {
+      const hash = await bcrypt.hash('password123', 10);
+      await prisma.user.create({
+        data: { email: managerEmail, name: 'Quản lý Trung tâm', passwordHash: hash, role: 'MANAGER', tenantId: 'tenant-demo' }
+      });
+      console.log('Seeded default account manager@center.com');
+    }
+
+    const studentEmail = 'student@example.com';
+    const existingStudent = await prisma.user.findUnique({ where: { email: studentEmail } });
+    if (!existingStudent) {
+      const hash = await bcrypt.hash('password123', 10);
+      await prisma.user.create({
+        data: { email: studentEmail, name: 'Học viên Demo', passwordHash: hash, role: 'STUDENT', tenantId: 'tenant-demo' }
+      });
+      console.log('Seeded default account student@example.com');
+    }
+  } catch (e) {
+    console.warn('Seed default accounts notice:', e);
+  }
+}
+
 app.get('/health', (req, res) => {
   res.json({ status: 'Account Service is running!' });
 });
@@ -29,20 +65,20 @@ app.get('/health', (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
-    if (!email || !password || !name) return res.status(400).json({ error: 'Missing fields' });
+    if (!email || !password || !name) return res.status(400).json({ error: 'Vui lòng điền đầy đủ họ tên, email và mật khẩu' });
 
     // Check existing
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return res.status(400).json({ error: 'Email already exists' });
+    if (existing) return res.status(400).json({ error: 'Email này đã được đăng ký tài khoản trước đó.' });
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({ data: { email, name, passwordHash, role: 'STUDENT' } });
+    const user = await prisma.user.create({ data: { email, name, passwordHash, role: 'STUDENT', tenantId: 'tenant-demo' } });
     const token = jwt.sign({ id: user.id, role: user.role, tenant_id: user.tenantId }, JWT_SECRET, { expiresIn: '7d' });
 
-    res.json({ message: 'Registered successfully', token, user });
+    res.json({ message: 'Đăng ký thành công', token, user });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ error: 'Đăng ký không thành công. Vui lòng thử lại.' });
   }
 });
 
@@ -50,19 +86,21 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Missing fields' });
+    if (!email || !password) return res.status(400).json({ error: 'Vui lòng nhập Email và Mật khẩu' });
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!user || !user.passwordHash) {
+      return res.status(401).json({ error: 'Tài khoản không tồn tại. Hãy bấm "Đăng ký ngay" bên dưới để tạo tài khoản mới!' });
+    }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!isValid) return res.status(401).json({ error: 'Mật khẩu không chính xác. Vui lòng thử lại!' });
 
     const token = jwt.sign({ id: user.id, role: user.role, tenant_id: user.tenantId }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ message: 'Login successful', token, user });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: 'Lỗi đăng nhập hệ thống.' });
   }
 });
 
@@ -315,6 +353,9 @@ Học viên hỏi: "${message}"`;
 app.listen(PORT, () => {
   console.log(`Account Service is running on port ${PORT}`);
   prisma.$connect()
-    .then(() => console.log('Prisma connected to Database successfully'))
+    .then(async () => {
+      console.log('Prisma connected to Database successfully');
+      await seedDefaultAccounts();
+    })
     .catch((error) => console.error('Prisma DB connection warning:', error));
 });
