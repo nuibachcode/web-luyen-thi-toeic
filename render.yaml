@@ -13,8 +13,6 @@ services:
         value: http://aerotoeic-exam-service:4002
       - key: CATALOG_SERVICE_URL
         value: http://aerotoeic-catalog-service:4003
-      - key: ANALYTICS_SERVICE_URL
-        value: http://aerotoeic-analytics-service:4004
       - key: AI_SERVICE_URL
         value: http://aerotoeic-ai-service:4005
 
@@ -26,8 +24,6 @@ services:
     envVars:
       - key: PORT
         value: 4001
-      - key: DATABASE_URL
-        value: postgresql://postgres:postgres@localhost:5432/auth_db?sslmode=require
 
   - type: web
     name: aerotoeic-exam-service
@@ -37,8 +33,6 @@ services:
     envVars:
       - key: PORT
         value: 4002
-      - key: DATABASE_URL
-        value: postgresql://postgres:postgres@localhost:5432/exam_db?sslmode=require
 
   - type: web
     name: aerotoeic-catalog-service
@@ -48,19 +42,6 @@ services:
     envVars:
       - key: PORT
         value: 4003
-      - key: DATABASE_URL
-        value: postgresql://postgres:postgres@localhost:5432/catalog_db?sslmode=require
-
-  - type: web
-    name: aerotoeic-analytics-service
-    env: docker
-    plan: free
-    dockerfilePath: ./backend/analytics-service/Dockerfile
-    envVars:
-      - key: PORT
-        value: 4004
-      - key: DATABASE_URL
-        value: postgresql://postgres:postgres@localhost:5432/analytics_db?sslmode=require
 
   - type: web
     name: aerotoeic-ai-service

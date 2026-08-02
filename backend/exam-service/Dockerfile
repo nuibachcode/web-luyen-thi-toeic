@@ -8,4 +8,4 @@ COPY backend/exam-service/tsconfig.json ./
 COPY backend/exam-service/src ./src
 RUN npm run build
 EXPOSE 4002
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm start"]
+CMD ["sh", "-c", "(npx prisma db push --accept-data-loss || true) && npm start"]

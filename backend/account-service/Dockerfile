@@ -8,4 +8,4 @@ COPY backend/account-service/tsconfig.json ./
 COPY backend/account-service/src ./src
 RUN npm run build
 EXPOSE 4001
-CMD ["sh", "-c", "npx prisma db push && npm start"]
+CMD ["sh", "-c", "(npx prisma db push --accept-data-loss || true) && npm start"]
