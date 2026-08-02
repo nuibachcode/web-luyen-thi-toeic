@@ -21,7 +21,7 @@ export default function Login({ signup = false }: { signup?: boolean }) {
   const [show, setShow] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1047293847291-dummy.apps.googleusercontent.com';
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '67147674187-1mdjm76om0dj9uj41a1pqj136emtgg93.apps.googleusercontent.com';
 
   useEffect(() => {
     const handleGoogleCallback = async (response: any) => {
