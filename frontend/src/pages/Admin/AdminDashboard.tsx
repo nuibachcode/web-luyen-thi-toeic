@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shell, Button } from '../../components/UI';
 import { useAuth } from '../../context/AuthContext';
+import { getApiGatewayUrl } from '../../config/api';
 
 interface UserData {
   id: string;
@@ -33,7 +34,7 @@ function Users() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+      const gateway = getApiGatewayUrl();
       const res = await fetch(`${gateway}/api/admin/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -61,7 +62,7 @@ function Users() {
     setMsg('');
 
     try {
-      const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+      const gateway = getApiGatewayUrl();
       const res = await fetch(`${gateway}/api/admin/users`, {
         method: 'POST',
         headers: {
@@ -99,7 +100,7 @@ function Users() {
     if (!confirmDelete) return;
 
     try {
-      const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+      const gateway = getApiGatewayUrl();
       const res = await fetch(`${gateway}/api/admin/users/${userToDelete.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }

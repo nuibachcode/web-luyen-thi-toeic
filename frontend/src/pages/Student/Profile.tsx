@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shell, Button } from '../../components/UI';
 import { useAuth } from '../../context/AuthContext';
+import { getApiGatewayUrl } from '../../config/api';
 
 export default function Profile() {
   const { user, token, updateUser } = useAuth();
@@ -38,7 +39,7 @@ export default function Profile() {
     e.preventDefault();
     const key = user?.email ? `_${user.email}` : '';
     try {
-      const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+      const gateway = getApiGatewayUrl();
       const res = await fetch(`${gateway}/api/auth/profile`, {
         method: 'PUT',
         headers: {

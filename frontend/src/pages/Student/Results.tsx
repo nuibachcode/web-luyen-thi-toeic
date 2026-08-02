@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shell, Button } from '../../components/UI';
 import { useAuth } from '../../context/AuthContext';
+import { getApiGatewayUrl } from '../../config/api';
 
 type ExamResult = {
   id: string;
@@ -30,7 +31,7 @@ export default function Results() {
   useEffect(() => {
     const loadResults = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000'}/api/exam-results/me`, {
+        const response = await fetch(`${getApiGatewayUrl()}/api/exam-results/me`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (response.ok) {

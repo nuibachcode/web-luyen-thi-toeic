@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getApiGatewayUrl } from '../config/api';
 
 type VocabItem = {
   word: string;
@@ -72,7 +73,7 @@ export default function AIRoadmapWidget({ onActiveDayChange }: { onActiveDayChan
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [submittedQuiz, setSubmittedQuiz] = useState(false);
 
-  const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+  const gateway = getApiGatewayUrl();
   const token = localStorage.getItem('toeic_jwt');
 
   useEffect(() => {

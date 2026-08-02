@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Button } from '../../components/UI';
+import { Shell, Button } from '../../components/UI';
 import { useAuth } from '../../context/AuthContext';
+import { getApiGatewayUrl } from '../../config/api';
 
 export default function ManagerExams() {
   const { token } = useAuth();
@@ -49,7 +50,7 @@ export default function ManagerExams() {
   const [imageUrl, setImageUrl] = useState('');
   const [passageText, setPassageText] = useState('');
 
-  const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+  const gateway = getApiGatewayUrl();
 
   const fetchExams = async () => {
     setLoading(true);

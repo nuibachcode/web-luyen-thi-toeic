@@ -12,6 +12,8 @@ const GoogleIcon = () => (
   </svg>
 );
 
+import { getApiGatewayUrl } from '../../config/api';
+
 export default function Login({ signup = false }: { signup?: boolean }) {
   const navigate = useNavigate();
   const { loginWithToken } = useAuth();
@@ -22,15 +24,6 @@ export default function Login({ signup = false }: { signup?: boolean }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '67147674187-1mdjm76om0dj9uj41a1pqj136emtgg93.apps.googleusercontent.com';
-
-  const getApiGatewayUrl = () => {
-    const url = import.meta.env.VITE_API_GATEWAY_URL;
-    if (url) return url;
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return 'https://web-luyen-thi-toeic.onrender.com';
-    }
-    return 'http://localhost:4000';
-  };
 
   useEffect(() => {
     const handleGoogleCallback = async (response: any) => {

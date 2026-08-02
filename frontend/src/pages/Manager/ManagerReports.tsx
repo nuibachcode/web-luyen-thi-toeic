@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Stat } from '../../components/UI';
 import { useAuth } from '../../context/AuthContext';
+import { getApiGatewayUrl } from '../../config/api';
 
 export default function ManagerReports() {
   const { token } = useAuth();
@@ -9,7 +10,7 @@ export default function ManagerReports() {
 
   useEffect(() => {
     if (!token) return;
-    const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+    const gateway = getApiGatewayUrl();
 
     Promise.all([
       fetch(`${gateway}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : null),

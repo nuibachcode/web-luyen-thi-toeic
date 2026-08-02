@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { getApiGatewayUrl } from '../../config/api';
 
 export default function ManagerStudents() {
   const { token } = useAuth();
@@ -9,7 +10,7 @@ export default function ManagerStudents() {
 
   useEffect(() => {
     if (!token) return;
-    const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+    const gateway = getApiGatewayUrl();
     fetch(`${gateway}/api/admin/users`, {
       headers: { Authorization: `Bearer ${token}` }
     })

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { getApiGatewayUrl } from '../config/api';
 
 type Message = {
   sender: 'user' | 'ai';
@@ -59,7 +60,7 @@ export default function AITutorWidget() {
     setLoading(true);
 
     try {
-      const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+      const gateway = getApiGatewayUrl();
       const token = localStorage.getItem('toeic_jwt');
       const targetScore = Number(localStorage.getItem('toeic_target_score')) || 750;
 

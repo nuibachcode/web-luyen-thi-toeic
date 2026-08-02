@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shell } from '../../components/UI';
+import { getApiGatewayUrl } from '../../config/api';
 
 const fallbackTests = [
   { code: 'toeic-test-01', title: 'TOEIC Full Practice Test 01 - ETS 2026', time: '120 phút', questions: '200 câu hỏi', tag: 'CHÍNH THỨC 2026' },
@@ -26,7 +27,7 @@ export default function TestCenter() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000'}/api/exams`)
+    fetch(`${getApiGatewayUrl()}/api/exams`)
       .then(response => response.ok ? response.json() : Promise.reject())
       .then(({ exams }) => {
         if (exams && exams.length > 0) {

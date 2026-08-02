@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shell, Button, Stat, Progress } from '../../components/UI';
 import { useAuth } from '../../context/AuthContext';
 import AIRoadmapWidget from '../../components/AIRoadmapWidget';
+import { getApiGatewayUrl } from '../../config/api';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -76,7 +77,7 @@ export default function Dashboard() {
       return;
     }
 
-    const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+    const gateway = getApiGatewayUrl();
     fetch(`${gateway}/api/exam-results/analytics/me`, {
       headers: { Authorization: `Bearer ${token}` }
     })

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Shell } from '../../components/UI';
+import { getApiGatewayUrl } from '../../config/api';
 
 interface Question {
   id: string;
@@ -59,7 +60,7 @@ export default function TestPlayer() {
 
     setAiLoading(prev => ({ ...prev, [qNum]: true }));
     try {
-      const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+      const gateway = getApiGatewayUrl();
       const res = await fetch(`${gateway}/api/ai/explain`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,7 +92,7 @@ export default function TestPlayer() {
 
     setTranscriptLoading(prev => ({ ...prev, [grp.id]: true }));
     try {
-      const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+      const gateway = getApiGatewayUrl();
       const res = await fetch(`${gateway}/api/ai/generate-transcript`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -128,7 +129,7 @@ export default function TestPlayer() {
   // Fetch exam data & normalize
   useEffect(() => {
     setLoading(true);
-    fetch(`${import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000'}/api/exams/${encodeURIComponent(testCode)}`)
+    fetch(`${getApiGatewayUrl()}/api/exams/${encodeURIComponent(testCode)}`)
       .then(res => res.ok ? res.json() : Promise.reject())
       .then(data => {
         const examObj = data.exam || data || {};
@@ -263,7 +264,7 @@ export default function TestPlayer() {
       // Save result to PostgreSQL database
       try {
         const token = localStorage.getItem('toeic_jwt');
-        const gateway = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:4000';
+        const gateway = getApiGatewayUrl();
         await fetch(`${gateway}/api/exam-results`, {
           method: 'POST',
           headers: {
