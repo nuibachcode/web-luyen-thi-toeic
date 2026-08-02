@@ -37,11 +37,11 @@ const verifyJwt = (req: express.Request, res: express.Response, next: express.Ne
   try { jwt.verify(token, secret); next(); } catch { res.status(401).json({ error: 'Invalid or expired token' }); }
 };
 
-const authProxy = createProxyMiddleware({ target: services.auth, changeOrigin: true, pathRewrite: preserveApiPath });
-const examProxy = createProxyMiddleware({ target: services.exam, changeOrigin: true, pathRewrite: preserveApiPath });
-const catalogProxy = createProxyMiddleware({ target: services.catalog, changeOrigin: true, pathRewrite: preserveApiPath });
-const aiProxy = createProxyMiddleware({ target: services.ai, changeOrigin: true, pathRewrite: preserveApiPath });
-const analyticsProxy = createProxyMiddleware({ target: services.analytics, changeOrigin: true, pathRewrite: preserveApiPath });
+const authProxy = createProxyMiddleware({ target: services.auth, changeOrigin: true, pathRewrite: preserveApiPath, proxyTimeout: 60000, timeout: 60000 });
+const examProxy = createProxyMiddleware({ target: services.exam, changeOrigin: true, pathRewrite: preserveApiPath, proxyTimeout: 60000, timeout: 60000 });
+const catalogProxy = createProxyMiddleware({ target: services.catalog, changeOrigin: true, pathRewrite: preserveApiPath, proxyTimeout: 60000, timeout: 60000 });
+const aiProxy = createProxyMiddleware({ target: services.ai, changeOrigin: true, pathRewrite: preserveApiPath, proxyTimeout: 60000, timeout: 60000 });
+const analyticsProxy = createProxyMiddleware({ target: services.analytics, changeOrigin: true, pathRewrite: preserveApiPath, proxyTimeout: 60000, timeout: 60000 });
 
 app.get('/health', (_req, res) => res.json({ status: 'Gateway running', services }));
 
