@@ -87,6 +87,15 @@ app.use('/api/exams', (req, res, next) => {
 });
 
 app.use('/api/analytics', verifyJwt, analyticsProxy);
-app.use('/api/ai', aiProxy);
+// Keep-Alive Ping every 4 minutes to prevent Render Free-tier cold starts
+setInterval(() => {
+  const accountUrl = process.env.ACCOUNT_SERVICE_URL || 'https://aerotoeic-account-service.onrender.com';
+  const examUrl = process.env.EXAM_SERVICE_URL || 'https://aerotoeic-exam-service.onrender.com';
+  const catalogUrl = process.env.CATALOG_SERVICE_URL || 'https://aerotoeic-catalog-service.onrender.com';
+
+  if (accountUrl.includes('onrender.com')) fetch(`${accountUrl}/health`).catch(() => {});
+  if (examUrl.includes('onrender.com')) fetch(`${examUrl}/health`).catch(() => {});
+  if (catalogUrl.includes('onrender.com')) fetch(`${catalogUrl}/health`).catch(() => {});
+}, 4 * 60 * 1000);
 
 app.listen(port, () => console.log(`Pure Microservices API Gateway listening on :${port}`));

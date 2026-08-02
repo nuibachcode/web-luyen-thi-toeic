@@ -350,6 +350,11 @@ Học viên hỏi: "${message}"`;
   }
 });
 
+// Keep-Alive Ping back to Gateway every 4 minutes to prevent Render Free-tier cold starts
+setInterval(() => {
+  fetch('https://aerotoeic-api-gateway.onrender.com/health').catch(() => {});
+}, 4 * 60 * 1000);
+
 app.listen(PORT, () => {
   console.log(`Account Service is running on port ${PORT}`);
   prisma.$connect()
