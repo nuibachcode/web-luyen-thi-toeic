@@ -35,7 +35,13 @@ export default function Login({ signup = false }: { signup?: boolean }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: response.credential })
         });
-        const data = await res.json();
+        const text = await res.text();
+        let data: any = {};
+        try {
+          data = JSON.parse(text);
+        } catch {
+          if (!res.ok) throw new Error('Máy chủ Backend Cloud đang khởi động (Cold Start). Vui lòng đợi 15-30 giây và thử lại!');
+        }
         if (!res.ok) throw new Error(data.error || 'Đăng nhập Google thất bại');
         loginWithToken(data.token, data.user.name, data.user.email);
         if (data.user.role === 'SUPERADMIN') navigate('/admin');
@@ -101,8 +107,14 @@ export default function Login({ signup = false }: { signup?: boolean }) {
         body: JSON.stringify(body)
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Xác thực thất bại. Vui lòng kiểm tra lại.');
+        const text = await res.text();
+        let data: any = {};
+        try {
+          data = JSON.parse(text);
+        } catch {
+          if (!res.ok) throw new Error('Máy chủ Backend Cloud đang khởi động (Cold Start). Vui lòng đợi 15-30 giây và thử lại!');
+        }
+        if (!res.ok) throw new Error(data.error || 'Xác thực thất bại. Vui lòng kiểm tra lại.');
 
       loginWithToken(data.token, data.user.name, data.user.email);
 
