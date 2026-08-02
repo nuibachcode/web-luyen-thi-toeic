@@ -637,49 +637,9 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
   }
 });
 
-async function seedDefaultQuestions() {
-  try {
-    const count = await prisma.question.count();
-    if (count === 0) {
-      const sampleQuestions = [
-        {
-          examCode: 'toeic-test-01', questionNumber: 1, part: 1, section: 'listening',
-          questionText: 'Look at the picture marked No. 1 in your test book.',
-          optionA: 'He is typing on a computer keyboard.', optionB: 'He is adjusting his glasses.',
-          optionC: 'He is looking at some documents.', optionD: 'He is writing in a notebook.',
-          correctAnswer: 'A', explanationVi: 'Trong hình, người đàn ông đang gõ phím máy tính. Chọn (A).',
-          imageUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800'
-        },
-        {
-          examCode: 'toeic-test-01', questionNumber: 2, part: 2, section: 'listening',
-          questionText: 'Where is the annual marketing conference being held this year?',
-          optionA: 'At the Grand Hotel downtown.', optionB: 'Yes, it was very informative.',
-          optionC: 'Next Tuesday at 9:00 AM.', optionD: 'I attended last year too.',
-          correctAnswer: 'A', explanationVi: 'Câu hỏi "Where" hỏi địa điểm. Phương án A trả lời đúng địa điểm "At the Grand Hotel downtown".'
-        },
-        {
-          examCode: 'toeic-test-01', questionNumber: 101, part: 5, section: 'reading',
-          questionText: 'Ms. Robinson will review the financial report ______ before submitting it to the director.',
-          optionA: 'careful', optionB: 'carefully', optionC: 'carefulness', optionD: 'caring',
-          correctAnswer: 'B', explanationVi: 'Bổ nghĩa cho động từ "review" cần một Trạng từ (Adverb). Chọn B (carefully).'
-        }
-      ];
-      for (const q of sampleQuestions) {
-        await prisma.question.create({ data: q });
-      }
-      console.log('Seeded default sample questions into Exam database');
-    }
-  } catch (err) {
-    console.warn('Seed questions notice:', err);
-  }
-}
-
 app.listen(port, () => {
   console.log(`Exam Service listening on port ${port}`);
   prisma.$connect()
-    .then(async () => {
-      console.log('Prisma connected to Database successfully');
-      await seedDefaultQuestions();
-    })
+    .then(() => console.log('Prisma connected to Database successfully'))
     .catch((error) => console.error('Could not initialize exam-service database:', error));
 });
