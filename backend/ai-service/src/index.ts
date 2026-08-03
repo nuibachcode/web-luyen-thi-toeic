@@ -14,50 +14,29 @@ app.use(express.json());
 let currentAIConfig: AIConfig = { ...defaultAIConfig };
 const DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6I6c_PyiTpYlOU-vJg8juOpn1rx1NCbtTMoWn38X24QYw';
 
-// Helper function to call Gemini API with System Instructions
+// Helper function to call Gemini API - fast single call, one fallback only
 async function callGeminiApi(prompt: string, apiKey: string, customSystemInstruction?: string) {
-  const models = ['gemini-flash-latest', 'gemini-2.0-flash', 'gemini-flash-lite-latest', 'gemini-2.0-flash-lite-001'];
   const systemText = customSystemInstruction || currentAIConfig.systemInstruction;
-
   const payload = {
-    systemInstruction: {
-      parts: [{ text: systemText }]
-    },
+    systemInstruction: { parts: [{ text: systemText }] },
     contents: [{ parts: [{ text: prompt }] }]
   };
 
+  // Try fastest model first, one fallback only — no multi-retry loops
+  const models = ['gemini-2.0-flash-lite', 'gemini-2.0-flash'];
   for (const model of models) {
     try {
-      // Method 1: Query param with systemInstruction
-      let res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return text;
-      }
-
-      // Method 2: Header x-goog-api-key
-      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
-        },
-        body: JSON.stringify(payload)
-      });
-
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+      );
       if (res.ok) {
         const data = await res.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) return text;
       }
     } catch (e) {
-      console.warn(`Model ${model} fetch attempt failed:`, e);
+      console.warn(`Model ${model} failed:`, (e as Error).message);
     }
   }
   return null;
@@ -382,7 +361,7 @@ Hãy trả về phản hồi JSON hợp lệ (không chứa ký tự markdown ha
     }
   ]
 }
-Yêu cầu quan trọng: "vocabularyList" phải chứa từ 10 đến 12 từ vựng phong phú đầy đủ phiên âm IPA, loại từ, nghĩa tiếng Việt và câu ví dụ dài. "practiceQuestions" phải chứa từ 10 đến 12 câu hỏi trắc nghiệm A-B-C-D kèm đáp án và lời giải thích rõ ràng, đảm bảo đủ thời lượng 60 phút luyện tập cho học viên.`;
+Yêu cầu: "vocabularyList" gồm 6-8 từ vựng, mỗi từ có đủ ipa, partOfSpeech, meaning, example ngắn gọn. "practiceQuestions" gồm 5-6 câu hỏi trắc nghiệm A-D kèm correctAnswer và explanation ngắn. Phản hồi phải là JSON thuần, không markdown.`;
 
       const aiText = await callGeminiApi(prompt, apiKey);
       if (aiText) {
