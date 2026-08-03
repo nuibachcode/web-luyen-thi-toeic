@@ -44,12 +44,13 @@ async function callGeminiApi(prompt: string, apiKey: string, customSystemInstruc
 
 // Health Check Endpoint
 app.get('/health', (_req, res) => {
-  const hasKey = Boolean(process.env.GEMINI_API_KEY || DEFAULT_GEMINI_KEY);
+  const envKey = process.env.GEMINI_API_KEY;
   res.json({
     status: 'AI Service is running!',
     service: 'ai-service',
     port: PORT,
-    gemini_api_configured: hasKey,
+    gemini_api_configured: Boolean(envKey),
+    key_source: envKey ? 'environment' : 'default_expired',
     specialization: currentAIConfig.specialization
   });
 });
@@ -140,7 +141,8 @@ app.post('/api/ai/chat', async (req, res) => {
     const { message, history = [], context = {} } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey || DEFAULT_GEMINI_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey;
+    if (!apiKey) return res.json({ reply: '🔑 AI chưa được cấu hình API Key. Vui lòng liên hệ quản trị viên để kích hoạt tính năng AI.', provider: 'Notice' });
 
     if (apiKey) {
       const historySnippet = Array.isArray(history) && history.length > 0
@@ -174,7 +176,7 @@ Yêu cầu câu trả lời:
       if (reply) return res.json({ reply, provider: 'Google Gemini AI (Real-time)' });
     }
 
-    res.json({ reply: 'Vui lòng kiểm tra lại kết nối AI API.', provider: 'Notice' });
+    res.json({ reply: '⚠️ AI tạm thời không phản hồi. Bạn thử lại sau vài giây nhé! Nếu lỗi tiếp, hãy liên hệ admin để kiểm tra API Key.', provider: 'Notice' });
   } catch (error) {
     console.error('AI Chat error:', error);
     res.status(500).json({ error: 'AI Tutor failed' });
@@ -361,7 +363,7 @@ Hãy trả về phản hồi JSON hợp lệ (không chứa ký tự markdown ha
     }
   ]
 }
-Yêu cầu: "vocabularyList" gồm 6-8 từ vựng, mỗi từ có đủ ipa, partOfSpeech, meaning, example ngắn gọn. "practiceQuestions" gồm 5-6 câu hỏi trắc nghiệm A-D kèm correctAnswer và explanation ngắn. Phản hồi phải là JSON thuần, không markdown.`;
+Yêu cầu quan trọng: "vocabularyList" phải chứa từ 10 đến 12 từ vựng phong phú đầy đủ phiên âm IPA, loại từ, nghĩa tiếng Việt và câu ví dụ dài. "practiceQuestions" phải chứa từ 10 đến 12 câu hỏi trắc nghiệm A-B-C-D kèm đáp án và lời giải thích rõ ràng, đảm bảo đủ thời lượng 60 phút luyện tập cho học viên. Phản hồi phải là JSON thuần, không markdown.`;
 
       const aiText = await callGeminiApi(prompt, apiKey);
       if (aiText) {
