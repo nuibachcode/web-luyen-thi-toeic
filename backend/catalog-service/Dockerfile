@@ -8,4 +8,4 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npx tsc
 EXPOSE 4003
-CMD ["sh", "-c", "(npx prisma db push --accept-data-loss || true) && npm start"]
+CMD ["npm", "start"]
