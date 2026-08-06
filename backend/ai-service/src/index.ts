@@ -69,7 +69,7 @@ async function callGeminiApi(prompt: string, apiKey: string, customSystemInstruc
     for (const payload of [payloadSimple, payloadWithSystem]) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const timeoutId = setTimeout(() => controller.abort(), 22000);
 
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -519,44 +519,146 @@ Yêu cầu quan trọng: "vocabularyList" chứa 5-6 từ vựng xuất sắc ch
       }
     }
 
-    // Fallback 60-Minute Lesson Generator
+    // Smart Fallback 60-Minute Lesson Generator (Dynamic per day topic)
     const dNum = Number(dayNumber) || 1;
+    const topicBankIndex = (dNum - 1) % 5;
+
+    const topicBanks = [
+      {
+        title: dayTitle || `Bài học Ngày ${dNum}: Mô tả hình ảnh & Bẫy thì tiếp diễn Part 1`,
+        vocabularyList: [
+          { word: 'inspect', ipa: '/ɪnˈspekt/', partOfSpeech: 'verb', meaning: 'kiểm tra, thanh tra', example: 'The engineer is inspecting the machinery.' },
+          { word: 'merchandise', ipa: '/ˈmɜː.tʃən.daɪz/', partOfSpeech: 'noun', meaning: 'hàng hóa', example: 'Merchandise is displayed on shelves.' },
+          { word: 'pedestrian', ipa: '/pəˈdes.tri.ən/', partOfSpeech: 'noun', meaning: 'người đi bộ', example: 'Pedestrians are crossing the street.' },
+          { word: 'assemble', ipa: '/əˈsem.bəl/', partOfSpeech: 'verb', meaning: 'lắp ráp, tập hợp', example: 'Workers are assembling the new equipment.' },
+          { word: 'vehicle', ipa: '/ˈvɪə.kəl/', partOfSpeech: 'noun', meaning: 'xe cộ, phương tiện', example: 'Several vehicles are parked along the curb.' }
+        ],
+        grammarRule: {
+          title: 'Chiến thuật làm bài Part 1: Cấu trúc Mô tả Hành động & Trạng thái',
+          explanation: 'Đối với Part 1, chú ý bẫy "being + V3" (chỉ hành động đang diễn ra). Nếu hình ảnh không có người đang thao tác, đáp án có "being" là SAI.',
+          formula: 'Subject + IS/ARE + BEING + V3/ed (Hành động đang làm)',
+          examples: [
+            'The road is being paved. (Đang có người lát đường)',
+            'Boxes have been stacked in the warehouse. (Hộp đã được chất đống)'
+          ]
+        },
+        etsTips: '💡 Mẹo Part 1: Quan sát kỹ tay và hướng mắt của nhân vật trong hình ảnh trước khi nghe 4 phương án.',
+        practiceQuestions: [
+          { id: 1, questionText: 'Look at the picture: A man is ______ a document on his desk.', optionA: 'examining', optionB: 'exam', optionC: 'examined', optionD: 'examination', correctAnswer: 'A', explanation: 'Sau động từ to be "is" miêu tả hành động đang diễn ra chọn V-ing "examining". Chọn A.' },
+          { id: 2, questionText: 'Some items are being ______ on the counter.', optionA: 'display', optionB: 'displayed', optionC: 'displaying', optionD: 'displays', correctAnswer: 'B', explanation: 'Cấu trúc bị động "are being + V3/ed", chọn "displayed". Chọn B.' }
+        ]
+      },
+      {
+        title: dayTitle || `Bài học Ngày ${dNum}: Chiến thuật Hỏi & Đáp Part 2`,
+        vocabularyList: [
+          { word: 'inquire', ipa: '/ɪnˈkwaɪər/', partOfSpeech: 'verb', meaning: 'hỏi, điều tra', example: 'She called to inquire about room availability.' },
+          { word: 'postpone', ipa: '/pəʊstˈpəʊn/', partOfSpeech: 'verb', meaning: 'hoãn lại', example: 'The meeting was postponed until Thursday.' },
+          { word: 'location', ipa: '/ləʊˈkeɪ.ʃən/', partOfSpeech: 'noun', meaning: 'địa điểm', example: 'What is the location of the new branch?' },
+          { word: 'confirm', ipa: '/kənˈfɜːm/', partOfSpeech: 'verb', meaning: 'xác nhận', example: 'Please confirm your flight reservation.' },
+          { word: 'itinerary', ipa: '/aɪˈtɪn.ər.ər.i/', partOfSpeech: 'noun', meaning: 'lịch trình chuyến đi', example: 'The travel agency sent the updated itinerary.' }
+        ],
+        grammarRule: {
+          title: 'Chiến thuật Hỏi & Đáp Part 2: Nhận biết câu hỏi Wh-',
+          explanation: 'Nghe kỹ từ hỏi đầu tiên: Who (người), Where (nơi chốn), When (thời gian), Why (lý do), How (cách thức/chi phí). Loại ngay các đáp án có từ đồng âm bẫy.',
+          formula: 'Wh- + Auxiliary + Subject + Main Verb?',
+          examples: [
+            'Where is the conference room? - On the second floor.',
+            'Who is leading the seminar? - Mr. Thompson from Marketing.'
+          ]
+        },
+        etsTips: '💡 Mẹo Part 2: Các phương án mang nghĩa "I don\'t know", "Let me check", "It hasn\'t been decided yet" luôn đúng trong 95% trường hợp!',
+        practiceQuestions: [
+          { id: 1, questionText: 'Where will the workshop take place tomorrow?', optionA: 'In Conference Room B.', optionB: 'Yes, I will.', optionC: 'At 3:00 PM.', optionD: 'Mr. Davis.', correctAnswer: 'A', explanation: 'Câu hỏi "Where" hỏi địa điểm. Đáp án A trả lời phòng họp B là chính xác nhất.' },
+          { id: 2, questionText: 'When is the project proposal due?', optionA: 'By the end of this week.', optionB: 'Yes, it is.', optionC: 'To Mr. Harrison.', optionD: 'In the office.', correctAnswer: 'A', explanation: 'Câu hỏi "When" hỏi thời gian. Đáp án A chỉ hạn chót vào cuối tuần là đúng.' }
+        ]
+      },
+      {
+        title: dayTitle || `Bài học Ngày ${dNum}: Ngữ pháp Từ loại & Thì Động từ Part 5`,
+        vocabularyList: [
+          { word: 'implement', ipa: '/ˈɪm.plɪ.ment/', partOfSpeech: 'verb', meaning: 'triển khai, thực thi', example: 'The team will implement the new policy next month.' },
+          { word: 'compliance', ipa: '/kəmˈplaɪ.əns/', partOfSpeech: 'noun', meaning: 'sự tuân thủ', example: 'Safety compliance is mandatory for all staff.' },
+          { word: 'substantial', ipa: '/səbˈstæn.ʃəl/', partOfSpeech: 'adjective', meaning: 'đáng kể, lớn', example: 'The company reported a substantial growth in revenue.' },
+          { word: 'diligent', ipa: '/ˈdɪl.ɪ.dʒənt/', partOfSpeech: 'adjective', meaning: 'siêng năng, cần cù', example: 'Her diligent efforts were recognized by the board.' },
+          { word: 'eligible', ipa: '/ˈel.ɪ.dʒə.bəl/', partOfSpeech: 'adjective', meaning: 'đủ điều kiện', example: 'All full-time employees are eligible for benefits.' }
+        ],
+        grammarRule: {
+          title: 'Quy tắc Ngữ pháp Cốt lõi: Vị trí Từ loại (N, V, Adj, Adv)',
+          explanation: 'Đứng trước Danh từ là Tính từ (Adj + N). Bổ nghĩa cho Động từ/Tính từ là Trạng từ (Adv + V/Adj). Đứng sau Giới từ là Danh từ/V-ing.',
+          formula: 'Article/Possessive + Adj + Noun | Verb + Adverb',
+          examples: [
+            'The board approved a substantial increase in budget.',
+            'Mr. Lee handled the client complaint efficiently.'
+          ]
+        },
+        etsTips: '💡 Mẹo Part 5: Nhìn trước và sau khoảng trống 2 từ trước khi đọc toàn bộ câu để chọn nhanh từ loại trong 10 giây.',
+        practiceQuestions: [
+          { id: 1, questionText: 'The committee member agreed to ______ the new budget proposal.', optionA: 'approve', optionB: 'approval', optionC: 'approving', optionD: 'approved', correctAnswer: 'A', explanation: 'Sau động từ "agreed to" cần một động từ nguyên mẫu V-bare "approve". Chọn A.' },
+          { id: 2, questionText: 'All candidates worked ______ to meet the project deadline.', optionA: 'diligently', optionB: 'diligent', optionC: 'diligence', optionD: 'more diligent', correctAnswer: 'A', explanation: 'Bổ nghĩa cho động từ thường "worked", chọn trạng từ "diligently". Chọn A.' }
+        ]
+      },
+      {
+        title: dayTitle || `Bài học Ngày ${dNum}: Hội thoại Ngắn & Bài nói Part 3 & 4`,
+        vocabularyList: [
+          { word: 'representative', ipa: '/ˌrep.rɪˈzen.tə.tɪv/', partOfSpeech: 'noun', meaning: 'người đại diện', example: 'A customer representative will assist you.' },
+          { word: 'accommodate', ipa: '/əˈkɒm.ə.deɪt/', partOfSpeech: 'verb', meaning: 'chứa, đáp ứng', example: 'The room can accommodate up to 100 guests.' },
+          { word: 'negotiate', ipa: '/nəˈɡəʊ.ʃi.eɪt/', partOfSpeech: 'verb', meaning: 'thương lượng, đàm phán', example: 'They negotiated a lower rate for the contract.' },
+          { word: 'vendor', ipa: '/ˈven.dər/', partOfSpeech: 'noun', meaning: 'nhà cung cấp', example: 'The vendor delivered the supplies on time.' },
+          { word: 'inconvenience', ipa: '/ˌɪn.kəmˈviː.ni.əns/', partOfSpeech: 'noun', meaning: 'sự bất tiện', example: 'We apologize for any inconvenience caused.' }
+        ],
+        grammarRule: {
+          title: 'Kỹ năng làm Part 3 & 4: Paraphrasing & Đọc trước câu hỏi',
+          explanation: 'Tận dụng thời gian đọc hướng dẫn để đọc trước 3 câu hỏi của cụm bài nghe. Chú ý các từ đồng nghĩa (Paraphrasing) trong bài nghe và đáp án.',
+          formula: 'Keywords in Question -> Paraphrased Synonym in Audio',
+          examples: [
+            'Audio: "We need to delay the shipment" -> Option: "Postpone delivery"',
+            'Audio: "Reduce the price" -> Option: "Offer a discount"'
+          ]
+        },
+        etsTips: '💡 Mẹo Part 3-4: Vừa nghe vừa khoanh đáp án, băng đọc xong 3 câu hỏi thì tay bạn đã phải sẵn sàng đọc trước 3 câu hỏi của bài tiếp theo!',
+        practiceQuestions: [
+          { id: 1, questionText: 'What is the main topic of the conversation?', optionA: 'Negotiating a contract.', optionB: 'Ordering lunch.', optionC: 'Booking a flight.', optionD: 'Hiring a manager.', correctAnswer: 'A', explanation: 'Bài hội thoại xoay quanh đàm phán hợp đồng cung cấp. Chọn A.' },
+          { id: 2, questionText: 'What does the speaker promise to do next?', optionA: 'Send an email confirmation.', optionB: 'Cancel the order.', optionC: 'Call the technician.', optionD: 'Visit the office.', correctAnswer: 'A', explanation: 'Người nói cam kết gửi email xác nhận. Chọn A.' }
+        ]
+      },
+      {
+        title: dayTitle || `Bài học Ngày ${dNum}: Đọc hiểu Chuyên sâu Part 6 & 7`,
+        vocabularyList: [
+          { word: 'discrepancy', ipa: '/dɪsˈkrep.ən.si/', partOfSpeech: 'noun', meaning: 'sự sai lệch, khác biệt', example: 'Please report any billing discrepancies immediately.' },
+          { word: 'terminate', ipa: '/ˈtɜː.mɪ.neɪt/', partOfSpeech: 'verb', meaning: 'chấm dứt, kết thúc', example: 'Either party may terminate the lease contract.' },
+          { word: 'specification', ipa: '/ˌspes.ɪ.fɪˈkeɪ.ʃən/', partOfSpeech: 'noun', meaning: 'thông số kỹ thuật', example: 'Check the product specifications before ordering.' },
+          { word: 'confidential', ipa: '/ˌkɒn.fɪˈden.ʃəl/', partOfSpeech: 'adjective', meaning: 'bảo mật, bí mật', example: 'All employee records are strictly confidential.' },
+          { word: 'amend', ipa: '/əˈmend/', partOfSpeech: 'verb', meaning: 'sửa đổi, bổ sung', example: 'The policy was amended to protect worker rights.' }
+        ],
+        grammarRule: {
+          title: 'Kỹ thuật đọc hiểu Part 7: Skimming & Scanning tài liệu đôi/ba',
+          explanation: 'Đọc tiêu đề và câu đầu từng đoạn để nắm bức tranh tổng thể (Skimming). Sau đó dựa vào Từ khóa trong câu hỏi để quét chính xác dòng chứa đáp án (Scanning).',
+          formula: 'Question Keyword -> Target Line in Document A/B/C',
+          examples: [
+            'Question: "According to the email, why is Mr. Chang visiting London?"',
+            'Scan Document A for "Mr. Chang" and "London" to locate the reason.'
+          ]
+        },
+        etsTips: '💡 Mẹo Part 7: Với các câu hỏi chọn vị trí điền câu [1], [2], [3], [4] ở Part 6 & 7, hãy chú ý các từ nối (However, Therefore) và đại từ thay thế (This, These).',
+        practiceQuestions: [
+          { id: 1, questionText: 'Please review the attached invoice and notify us if you find any ______.', optionA: 'discrepancies', optionB: 'discrepant', optionC: 'discrepantly', optionD: 'discrepancying', correctAnswer: 'A', explanation: 'Sau tính từ "any" cần một danh từ số nhiều "discrepancies". Chọn A.' },
+          { id: 2, questionText: 'The agreement will remain in effect until ______ by either party.', optionA: 'terminated', optionB: 'terminate', optionC: 'terminating', optionD: 'termination', correctAnswer: 'A', explanation: 'Cấu trúc rút gọn mệnh đề bị động "until terminated", chọn V-ed. Chọn A.' }
+        ]
+      }
+    ];
+
+    const currentTopic = topicBanks[topicBankIndex];
+
     res.json({
       lesson: {
         dayNumber: dNum,
-        title: dayTitle || `Bài học Ngày ${dNum}: Chuyên sâu ETS TOEIC`,
+        title: dayTitle || currentTopic.title,
         estimatedTimeMinutes: 60,
-        vocabularyList: [
-          { word: 'implement', ipa: '/ˈɪm.plɪ.ment/', partOfSpeech: 'verb', meaning: 'triển khai, thực thi', example: 'The team will implement the new policy next month.' },
-          { word: 'representative', ipa: '/ˌrep.rɪˈzen.tə.tɪv/', partOfSpeech: 'noun', meaning: 'người đại diện', example: 'A customer service representative will assist you shortly.' },
-          { word: 'authorize', ipa: '/ˈɔː.θər.aɪz/', partOfSpeech: 'verb', meaning: 'ủy quyền, cho phép', example: 'Only the director can authorize international expenditures.' },
-          { word: 'schedule', ipa: '/ˈʃed.juːl/', partOfSpeech: 'verb/noun', meaning: 'lịch trình, lên lịch', example: 'The conference is scheduled for next Tuesday.' },
-          { word: 'compliance', ipa: '/kəmˈplaɪ.əns/', partOfSpeech: 'noun', meaning: 'sự tuân thủ', example: 'Safety compliance is mandatory for all lab technicians.' },
-          { word: 'negotiate', ipa: '/nəˈɡəʊ.ʃi.eɪt/', partOfSpeech: 'verb', meaning: 'đàm phán, thương lượng', example: 'They negotiated a lower rate for the yearly contract.' },
-          { word: 'substantially', ipa: '/səbˈstæn.ʃəl.i/', partOfSpeech: 'adverb', meaning: 'đáng kể, nhiều', example: 'Quarterly profits increased substantially after the merger.' },
-          { word: 'accommodate', ipa: '/əˈkɒm.ə.deɪt/', partOfSpeech: 'verb', meaning: 'chứa, đáp ứng nhu cầu', example: 'The hall can accommodate up to 500 participants.' },
-          { word: 'preliminary', ipa: '/prɪˈlɪm.ɪ.nər.i/', partOfSpeech: 'adjective', meaning: 'sơ bộ, ban đầu', example: 'The preliminary report will be reviewed tomorrow.' },
-          { word: 'terminate', ipa: '/ˈtɜː.mɪ.neɪt/', partOfSpeech: 'verb', meaning: 'chấm dứt, kết thúc', example: 'Either party may terminate the agreement with written notice.' }
-        ],
-        grammarRule: {
-          title: 'Quy tắc Ngữ pháp Cốt lõi TOEIC: Từ loại & Thì Động từ',
-          explanation: 'Trong đề thi TOEIC, vị trí trước danh từ thường là tính từ (Adj + N), và vị trí bổ nghĩa cho động từ/tính từ là trạng từ (Adv + V/Adj). Đồng thời cần chú ý thì Hiện tại Hoàn thành (have/has + V3) biểu thị hành động đã bắt đầu và còn kéo dài.',
-          formula: 'Subject + Have/Has + V3/ed + Object (since / for / already)',
-          examples: [
-            'Ms. Carter has successfully managed the sales division for five years.',
-            'All official documents must be reviewed before final submission.'
-          ]
-        },
-        etsTips: '💡 Mẹo ETS: Trong Part 5, nếu gặp câu hỏi từ loại có khoảng trống nằm giữa Động từ to be/từ nối và Tính từ, hãy chọn Trạng từ (-ly). Đối với Part 1 bài nghe, loại ngay đáp án có "being" nếu bức ảnh không có người đang thao tác!',
-        practiceQuestions: [
-          { id: 1, questionText: 'The board of directors agreed to ______ the proposed expansion plan next week.', optionA: 'approve', optionB: 'approval', optionC: 'approving', optionD: 'approved', correctAnswer: 'A', explanation: 'Sau cụm "agreed to" cần một động từ nguyên mẫu V-bare. Chọn A.' },
-          { id: 2, questionText: 'All candidates must submit their application forms ______ 5:00 PM on Friday.', optionA: 'until', optionB: 'before', optionC: 'during', optionD: 'between', correctAnswer: 'B', explanation: 'Chỉ mốc thời gian hoàn thành trước một hạn chót, dùng mạo từ/giới từ "before". Chọn B.' },
-          { id: 3, questionText: 'The marketing team worked ______ to complete the advertising campaign ahead of schedule.', optionA: 'diligent', optionB: 'diligently', optionC: 'diligence', optionD: 'more diligent', correctAnswer: 'B', explanation: 'Khoảng trống bổ nghĩa cho động từ thường "worked", chọn trạng từ "diligently". Chọn B.' },
-          { id: 4, questionText: 'Dr. Lawson is considered one of the most ______ researchers in modern biophysics.', optionA: 'respect', optionB: 'respected', optionC: 'respectfully', optionD: 'respects', correctAnswer: 'B', explanation: 'Khoảng trống nằm giữa "most" và danh từ "researchers", cần một tính từ miêu tả uy tín/được kính trọng "respected". Chọn B.' },
-          { id: 5, questionText: 'Please review the attached invoice and notify us if you find any ______.', optionA: 'discrepancies', optionB: 'discrepant', optionC: 'discrepantly', optionD: 'discrepancying', correctAnswer: 'A', explanation: 'Sau tính từ "any" cần một danh từ (ở dạng số nhiều "discrepancies" - sự sai lệch). Chọn A.' }
-        ]
+        vocabularyList: currentTopic.vocabularyList,
+        grammarRule: currentTopic.grammarRule,
+        etsTips: currentTopic.etsTips,
+        practiceQuestions: currentTopic.practiceQuestions
       },
-      provider: 'AeroAI Day Lesson Engine (Smart Fallback)'
+      provider: 'AeroAI Dynamic Topic Engine (Smart Fallback)'
     });
   } catch (error) {
     console.error('Generate day lesson error:', error);
