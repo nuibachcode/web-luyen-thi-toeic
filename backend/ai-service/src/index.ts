@@ -364,24 +364,51 @@ Hãy trả về phản hồi JSON hợp lệ (không bọc codeblock):
 {
   "diagnosticSummary": "Phân tích 2-3 câu về điểm mạnh, điểm yếu và chiến thuật bứt phá",
   "weakPoints": ["Điểm yếu 1", "Điểm yếu 2", "Điểm yếu 3"],
-  "totalDays": ${durationDays},
-  "weeksCount": ${Math.ceil(durationDays / 7)},
-  "days": [
-    {
-      "dayNumber": 1,
-      "weekNumber": 1,
-      "title": "Ngày 1: Từ vựng Văn phòng & Bẫy thì tiếp diễn Part 1",
-      "focus": "Mô tả hình ảnh & Từ vựng Office equipment"
-    }
-  ]
-}
-Lưu ý: mảng "days" phải chứa đúng ${durationDays} phần tử (từ Ngày 1 đến Ngày ${durationDays}). Tiêu đề và focus từng ngày phải phân bổ tăng dần từ củng cố nền tảng đến luyện thi bứt phá.`;
+  "phase1": { "name": "Tên giai đoạn 1 (Nền tảng & Part 1-2)", "focus": "Trọng tâm bài học giai đoạn 1" },
+  "phase2": { "name": "Tên giai đoạn 2 (Tăng tốc & Part 3-5)", "focus": "Trọng tâm bài học giai đoạn 2" },
+  "phase3": { "name": "Tên giai đoạn 3 (Bứt phá & Part 6-7)", "focus": "Trọng tâm bài học giai đoạn 3" }
+}`;
 
       const aiText = await callGeminiApi(prompt, apiKey);
       if (aiText) {
         const parsed = extractJsonObject(aiText);
-        if (parsed && parsed.days && Array.isArray(parsed.days)) {
-          return res.json({ overview: parsed, provider: 'Google Gemini AI (Real-time)' });
+        if (parsed) {
+          const numDays = Math.min(60, Math.max(7, Number(durationDays) || 30));
+          
+          let daysList: any[] = [];
+          if (parsed.days && Array.isArray(parsed.days) && parsed.days.length > 0) {
+            daysList = parsed.days;
+          } else {
+            const phases = [
+              parsed.phase1 || { name: 'Củng cố Nền tảng & Từ vựng Part 1-2', focus: 'Mô tả hình ảnh & Hỏi đáp Wh-' },
+              parsed.phase2 || { name: 'Tăng tốc Ngữ pháp & Bài nói Part 3-5', focus: 'Từ loại, Thì động từ & Nghe hội thoại' },
+              parsed.phase3 || { name: 'Bứt phá Đọc hiểu & Thi thử Part 6-7', focus: 'Kỹ thuật Skimming/Scanning & Luyện đề ETS' }
+            ];
+
+            daysList = Array.from({ length: numDays }, (_, i) => {
+              const dayNum = i + 1;
+              const weekNum = Math.ceil(dayNum / 7);
+              const phaseIdx = Math.min(2, Math.floor((i / numDays) * 3));
+              const currentPhase = phases[phaseIdx];
+              return {
+                dayNumber: dayNum,
+                weekNumber: weekNum,
+                title: `Ngày ${dayNum}: ${currentPhase.name}`,
+                focus: currentPhase.focus
+              };
+            });
+          }
+
+          return res.json({
+            overview: {
+              diagnosticSummary: parsed.diagnosticSummary || `Phân tích trình độ ${currentScore} điểm lên mục tiêu ${targetScore} điểm trong ${numDays} ngày.`,
+              weakPoints: parsed.weakPoints || ['Từ vựng chuyên ngành', 'Phản xạ Part 3-4', 'Quản lý thời gian Part 7'],
+              totalDays: numDays,
+              weeksCount: Math.ceil(numDays / 7),
+              days: daysList
+            },
+            provider: 'Google Gemini AI (Real-time)'
+          });
         }
       }
     }
