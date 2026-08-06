@@ -350,39 +350,54 @@ app.post('/api/ai/create-roadmap-overview', async (req, res) => {
   try {
     const { currentScore = 450, targetScore = 750, durationDays = 30, listeningAvg = 240, readingAvg = 210, testHistory = [] } = req.body;
     const apiKey = req.body.apiKey || currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
+    const numDays = Math.min(60, Math.max(7, Number(durationDays) || 30));
 
     if (apiKey) {
       const gap = targetScore - currentScore;
-      const expDifficulty = Math.round(Math.exp(gap / 120) * 10) / 10;
 
-      const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy lập KHUNG NỘI DUNG TỔNG QUAN lộ trình học ${durationDays} ngày cá nhân hóa cho học viên dựa trên:
-- Trình độ hiện tại: ${currentScore} điểm (Listening: ${listeningAvg}, Reading: ${readingAvg})
-- Mục tiêu: ${targetScore} điểm (Khoảng cách: +${gap} điểm. Hệ số độ khó ngầm: ${expDifficulty}x)
-- Lịch sử thi thử đã nộp: ${testHistory.length} bài
+      const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy lập LỘ TRÌNH HỌC TÙY CHỈNH CHÍNH XÁC ${numDays} NGÀY cho học viên:
+- Điểm hiện tại: ${currentScore} điểm (Listening: ${listeningAvg}, Reading: ${readingAvg})
+- Điểm mục tiêu: ${targetScore} điểm (Khoảng cách: +${gap} điểm)
+- Lịch sử làm bài thi thử: ${testHistory.length} bài đã nộp
 
-Hãy trả về phản hồi JSON hợp lệ (không bọc codeblock):
+Yêu cầu đầu ra:
+1. "diagnosticSummary": Phân tích ngắn 2-3 câu CÁ NHÂN HÓA cho điểm ${currentScore} -> ${targetScore} trong ${numDays} ngày.
+2. "weakPoints": 3 điểm yếu lớn nhất cần khắc phục dựa trên điểm Listening ${listeningAvg} và Reading ${readingAvg}.
+3. "days": Mảng đúng ${numDays} phần tử (từ 1 đến ${numDays}). Mỗi ngày có tiêu đề (title) và trọng tâm (focus) RIÊNG BIỆT, ĐỘNG, BÁM SÁT MỤC TIÊU ${targetScore} ĐIỂM.
+
+Trả về DUY NHẤT JSON hợp lệ (không chứa markdown codeblock):
 {
-  "diagnosticSummary": "Phân tích 2-3 câu về điểm mạnh, điểm yếu và chiến thuật bứt phá",
+  "diagnosticSummary": "Phân tích cá nhân hóa cho học viên...",
   "weakPoints": ["Điểm yếu 1", "Điểm yếu 2", "Điểm yếu 3"],
-  "phase1": { "name": "Tên giai đoạn 1 (Nền tảng & Part 1-2)", "focus": "Trọng tâm bài học giai đoạn 1" },
-  "phase2": { "name": "Tên giai đoạn 2 (Tăng tốc & Part 3-5)", "focus": "Trọng tâm bài học giai đoạn 2" },
-  "phase3": { "name": "Tên giai đoạn 3 (Bứt phá & Part 6-7)", "focus": "Trọng tâm bài học giai đoạn 3" }
+  "days": [
+    { "dayNumber": 1, "weekNumber": 1, "title": "Ngày 1: Tiêu đề bám sát mục tiêu ${targetScore}", "focus": "Trọng tâm bài học" }
+  ]
 }`;
 
       const aiText = await callGeminiApi(prompt, apiKey);
       if (aiText) {
         const parsed = extractJsonObject(aiText);
         if (parsed) {
-          const numDays = Math.min(60, Math.max(7, Number(durationDays) || 30));
-          
           let daysList: any[] = [];
           if (parsed.days && Array.isArray(parsed.days) && parsed.days.length > 0) {
-            daysList = parsed.days;
+            daysList = parsed.days.map((d: any, i: number) => ({
+              dayNumber: d.dayNumber || (i + 1),
+              weekNumber: d.weekNumber || Math.ceil((i + 1) / 7),
+              title: d.title || `Ngày ${i + 1}: Chuyên đề TOEIC ${targetScore}+`,
+              focus: d.focus || `Chiến thuật bứt phá mục tiêu ${targetScore} điểm`
+            }));
           } else {
+            const phase1Name = parsed.phase1?.name || `Củng cố Nền tảng & Từ vựng Part 1-2 (${targetScore}+)`;
+            const phase1Focus = parsed.phase1?.focus || 'Mô tả hình ảnh & Hỏi đáp Wh-';
+            const phase2Name = parsed.phase2?.name || `Tăng tốc Ngữ pháp & Bài nói Part 3-5 (${targetScore}+)`;
+            const phase2Focus = parsed.phase2?.focus || 'Từ loại, Thì động từ & Nghe hội thoại';
+            const phase3Name = parsed.phase3?.name || `Bứt phá Đọc hiểu & Thi thử Part 6-7 (${targetScore}+)`;
+            const phase3Focus = parsed.phase3?.focus || 'Kỹ thuật Skimming/Scanning & Luyện đề ETS';
+
             const phases = [
-              parsed.phase1 || { name: 'Củng cố Nền tảng & Từ vựng Part 1-2', focus: 'Mô tả hình ảnh & Hỏi đáp Wh-' },
-              parsed.phase2 || { name: 'Tăng tốc Ngữ pháp & Bài nói Part 3-5', focus: 'Từ loại, Thì động từ & Nghe hội thoại' },
-              parsed.phase3 || { name: 'Bứt phá Đọc hiểu & Thi thử Part 6-7', focus: 'Kỹ thuật Skimming/Scanning & Luyện đề ETS' }
+              { name: phase1Name, focus: phase1Focus },
+              { name: phase2Name, focus: phase2Focus },
+              { name: phase3Name, focus: phase3Focus }
             ];
 
             daysList = Array.from({ length: numDays }, (_, i) => {
@@ -401,8 +416,12 @@ Hãy trả về phản hồi JSON hợp lệ (không bọc codeblock):
 
           return res.json({
             overview: {
-              diagnosticSummary: parsed.diagnosticSummary || `Phân tích trình độ ${currentScore} điểm lên mục tiêu ${targetScore} điểm trong ${numDays} ngày.`,
-              weakPoints: parsed.weakPoints || ['Từ vựng chuyên ngành', 'Phản xạ Part 3-4', 'Quản lý thời gian Part 7'],
+              diagnosticSummary: parsed.diagnosticSummary || `Hệ thống phân tích trình độ hiện tại (${currentScore} điểm) và mục tiêu ${targetScore} điểm trong ${numDays} ngày. Lộ trình tập trung cải thiện kỹ năng nghe (${listeningAvg} điểm) và đọc (${readingAvg} điểm).`,
+              weakPoints: parsed.weakPoints || [
+                `Tốc độ phân tích Part 5 & 6 ứng với mức điểm ${currentScore}`,
+                `Vốn từ vựng chuyên ngành bứt phá mục tiêu ${targetScore}`,
+                'Quản lý thời gian làm bài Part 7 đoạn kép & đoạn ba'
+              ],
               totalDays: numDays,
               weeksCount: Math.ceil(numDays / 7),
               days: daysList
@@ -413,18 +432,17 @@ Hãy trả về phản hồi JSON hợp lệ (không bọc codeblock):
       }
     }
 
-    // Fallback Roadmap Generator
-    const numDays = Math.min(60, Math.max(7, Number(durationDays) || 30));
+    // Dynamic Fallback Roadmap Generator
     const topics = [
-      { title: 'Từ vựng Văn phòng & Mô tả hình ảnh Part 1', focus: 'Bẫy thì tiếp diễn & Từ vựng Office Equipment' },
-      { title: 'Chiến thuật Hỏi & Đáp Part 2', focus: 'Từ hỏi Wh- & Mẹo đáp án I don\'t know' },
-      { title: 'Ngữ pháp Thì Quá khứ & Hiện tại Hoàn thành Part 5', focus: 'Dấu hiệu nhận biết thì & Sự hòa hợp S-V' },
-      { title: 'Hội thoại Ngắn Part 3 - Chủ đề Đặt hàng & Giao hàng', focus: 'Kỹ năng đọc trước câu hỏi & Bắt key words' },
-      { title: 'Bài nói Ngắn Part 4 - Thông báo & Hướng dẫn', focus: 'Nhận biết người nói & Mục đích bài phát biểu' },
-      { title: 'Hoàn thành Đoạn văn Part 6', focus: 'Liên từ & Điền câu phù hợp văn cảnh' },
-      { title: 'Đọc hiểu Đoạn đơn Part 7 - Email & Thư thoại', focus: 'Kỹ thuật Skimming & Scanning câu hỏi chi tiết' },
-      { title: 'Đọc hiểu Đoạn đôi & Đoạn ba Part 7', focus: 'Kết nối thông tin giữa 2-3 tài liệu văn bản' },
-      { title: 'Luyện đề thi thử ETS Mock Test', focus: 'Quản lý quỹ thời gian 120 phút & Kiểm soát áp lực' }
+      { title: `Từ vựng & Mô tả hình ảnh Part 1 (Mục tiêu ${targetScore})`, focus: 'Bẫy thì tiếp diễn & Từ vựng Office Equipment' },
+      { title: `Chiến thuật Hỏi & Đáp Part 2 (Mục tiêu ${targetScore})`, focus: 'Từ hỏi Wh- & Mẹo đáp án I don\'t know' },
+      { title: `Ngữ pháp Từ loại & Thì Động từ Part 5 (Mục tiêu ${targetScore})`, focus: 'Dấu hiệu nhận biết từ loại & Sự hòa hợp S-V' },
+      { title: `Hội thoại Ngắn Part 3 (Mục tiêu ${targetScore})`, focus: 'Kỹ năng đọc trước câu hỏi & Bắt từ đồng nghĩa' },
+      { title: `Bài nói Ngắn Part 4 (Mục tiêu ${targetScore})`, focus: 'Nhận biết người nói & Mục đích bài phát biểu' },
+      { title: `Hoàn thành Đoạn văn Part 6 (Mục tiêu ${targetScore})`, focus: 'Liên từ & Điền câu phù hợp văn cảnh' },
+      { title: `Đọc hiểu Đoạn đơn Part 7 (Mục tiêu ${targetScore})`, focus: 'Kỹ thuật Skimming & Scanning câu hỏi chi tiết' },
+      { title: `Đọc hiểu Đoạn đôi & Đoạn ba Part 7 (Mục tiêu ${targetScore})`, focus: 'Kết nối thông tin giữa 2-3 tài liệu văn bản' },
+      { title: `Luyện đề thi thử ETS Mock Test (Mục tiêu ${targetScore})`, focus: 'Quản lý quỹ thời gian 120 phút & Kiểm soát áp lực' }
     ];
 
     const daysList = Array.from({ length: numDays }, (_, i) => {
@@ -441,10 +459,10 @@ Hãy trả về phản hồi JSON hợp lệ (không bọc codeblock):
 
     res.json({
       overview: {
-        diagnosticSummary: `Hệ thống phân tích trình độ hiện tại (${currentScore} điểm) và mục tiêu ${targetScore} điểm trong ${numDays} ngày. Lộ trình tập trung cải thiện từ vựng cốt lõi, phản xạ kỹ năng nghe Parts 1-4 và tốc độ đọc Parts 5-7.`,
+        diagnosticSummary: `Hệ thống phân tích trình độ hiện tại (${currentScore} điểm) và mục tiêu ${targetScore} điểm trong ${numDays} ngày. Lộ trình tập trung cải thiện từ vựng cốt lõi, phản xạ kỹ năng nghe (${listeningAvg} điểm) và tốc độ đọc (${readingAvg} điểm).`,
         weakPoints: [
-          'Tốc độ phân tích câu ngữ pháp phức hợp ở Part 5 & 6',
-          'Từ vựng chuyên ngành Logistics, Marketing và Hợp đồng',
+          `Tốc độ phân tích câu ngữ pháp Part 5 & 6 ở mức ${currentScore} điểm`,
+          `Vốn từ vựng thương mại bứt phá mục tiêu ${targetScore} điểm`,
           'Quản lý thời gian làm bài Part 7 đoạn kép & đoạn ba'
         ],
         totalDays: numDays,
