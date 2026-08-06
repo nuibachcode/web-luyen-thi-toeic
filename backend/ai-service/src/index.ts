@@ -468,7 +468,7 @@ app.post('/api/ai/generate-day-lesson', async (req, res) => {
     if (apiKey) {
       const gap = targetScore - currentScore;
 
-      const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy biên soạn TRỌN BỘ BÀI HỌC 60 PHÚT ĐẦY ĐỦ CHO NGÀY ${dayNumber} theo chủ đề: "${dayTitle || 'Luyện tập chuyên sâu'}" (Trọng tâm: ${dayFocus || 'Kiến thức TOEIC'}).
+      const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy biên soạn TRỌN BỘ BÀI HỌC CÁ NHÂN HÓA CHO NGÀY ${dayNumber} theo đúng chủ đề: "${dayTitle || 'Luyện tập chuyên sâu'}" (Trọng tâm: ${dayFocus || 'Kiến thức TOEIC'}).
 Mục tiêu bài học giúp học viên bứt phá từ ${currentScore} lên ${targetScore} điểm (khoảng cách +${gap} điểm).
 
 Hãy trả về phản hồi JSON hợp lệ (không chứa ký tự markdown hay bọc codeblock):
@@ -478,37 +478,37 @@ Hãy trả về phản hồi JSON hợp lệ (không chứa ký tự markdown ha
   "estimatedTimeMinutes": 60,
   "vocabularyList": [
     {
-      "word": "authorize",
-      "ipa": "/ˈɔː.θər.aɪz/",
+      "word": "inquire",
+      "ipa": "/ɪnˈkwaɪər/",
       "partOfSpeech": "verb",
-      "meaning": "ủy quyền, cấp phép",
-      "example": "The manager authorized the release of the financial report."
+      "meaning": "hỏi, điều tra",
+      "example": "She called to inquire about the job position."
     }
   ],
   "grammarRule": {
-    "title": "Cấu trúc Ngữ pháp Cốt lõi",
-    "explanation": "Giải thích chi tiết quy tắc ngữ pháp cho buổi học này",
-    "formula": "S + V + Object / Clause",
+    "title": "Tên chủ đề Ngữ pháp bám sát chủ đề ngày học",
+    "explanation": "Giải thích chi tiết quy tắc ngữ pháp cho bài học ngày này",
+    "formula": "Công thức / Cấu trúc",
     "examples": [
-      "Ví dụ 1 minh họa câu ngữ pháp TOEIC",
-      "Ví dụ 2 phân tích thì động từ"
+      "Ví dụ 1 minh họa",
+      "Ví dụ 2 minh họa"
     ]
   },
-  "etsTips": "Mẹo tránh bẫy từ đồng âm hoặc lỗi hay sai trong đề thi ETS cho ngày học này",
+  "etsTips": "Mẹo tránh bẫy ETS bám sát chủ đề ngày học này",
   "practiceQuestions": [
     {
       "id": 1,
-      "questionText": "The board of directors agreed to ______ the new budget plan next Monday.",
-      "optionA": "approve",
-      "optionB": "approval",
-      "optionC": "approving",
-      "optionD": "approved",
+      "questionText": "Câu hỏi trắc nghiệm bám sát chủ đề bài học ngày này",
+      "optionA": "Đáp án A",
+      "optionB": "Đáp án B",
+      "optionC": "Đáp án C",
+      "optionD": "Đáp án D",
       "correctAnswer": "A",
-      "explanation": "Sau động từ 'agreed to' cần một động từ nguyên mẫu (V-bare). Chọn A."
+      "explanation": "Lời giải thích chi tiết vì sao chọn A."
     }
   ]
 }
-Yêu cầu quan trọng: "vocabularyList" phải chứa từ 10 đến 12 từ vựng phong phú đầy đủ phiên âm IPA, loại từ, nghĩa tiếng Việt và câu ví dụ dài. "practiceQuestions" phải chứa từ 10 đến 12 câu hỏi trắc nghiệm A-B-C-D kèm đáp án và lời giải thích rõ ràng, đảm bảo đủ thời lượng 60 phút luyện tập cho học viên. Phản hồi phải là JSON thuần, không markdown.`;
+Yêu cầu quan trọng: "vocabularyList" chứa 5-6 từ vựng xuất sắc chuẩn ETS theo đúng chủ đề "${dayTitle || 'Luyện tập'}". "practiceQuestions" chứa 4 câu hỏi trắc nghiệm A-B-C-D kèm đáp án và lời giải bám sát chủ đề "${dayTitle || 'Luyện tập'}". Phản hồi phải là JSON thuần.`;
 
       const aiText = await callGeminiApi(prompt, apiKey);
       if (aiText) {
