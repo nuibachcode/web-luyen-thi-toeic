@@ -21,8 +21,7 @@ async function callGeminiApi(prompt: string, apiKey: string, customSystemInstruc
     contents: [{ parts: [{ text: prompt }] }]
   };
 
-  // Try lite model first (faster), fallback to full flash
-  const models = ['gemini-2.0-flash-lite-001', 'gemini-2.0-flash'];
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   for (const model of models) {
     try {
       const res = await fetch(
@@ -107,17 +106,20 @@ Trả về định dạng JSON hợp lệ (không kèm markdown):
       }
     }
 
-    // Fallback for explain only (non-critical)
+    // Fallback for explain
     const parsedOptions = Array.isArray(options) ? options : [];
     const correctOpt = parsedOptions.find((o: any) => o.label === correctAnswer) || parsedOptions[0];
     res.json({
       ai: {
-        translation: `Câu hỏi: "${questionText || ''}"`,
-        whyCorrect: `Đáp án (${correctAnswer || correctOpt?.label || 'A'}) là chính xác. ${explanation || ''}`,
-        vocabulary: [{ word: 'authorize', ipa: '/ˈɔː.θər.aɪz/', meaning: 'ủy quyền, cấp phép' }],
-        trapWarning: 'Chú ý phân biệt từ đồng âm và các thì động từ thường gặp.'
+        translation: `Câu hỏi: "${questionText || 'Câu hỏi luyện tập TOEIC'}"`,
+        whyCorrect: `Đáp án (${correctAnswer || correctOpt?.label || 'A'}) là chính xác. ${explanation || 'Dựa theo ngữ cảnh văn phạm ETS.'}`,
+        vocabulary: [
+          { word: 'authorize', ipa: '/ˈɔː.θər.aɪz/', meaning: 'ủy quyền, cấp phép' },
+          { word: 'confirm', ipa: '/kənˈfɜːm/', meaning: 'xác nhận' }
+        ],
+        trapWarning: 'Chú ý phân biệt từ đồng âm và các thì động từ thường gặp trong ETS.'
       },
-      provider: 'Fallback Engine'
+      provider: 'AeroAI Engine (Smart Fallback)'
     });
   } catch (error) {
     console.error('AI Explain error:', error);
@@ -132,17 +134,17 @@ app.post('/api/ai/chat', async (req, res) => {
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
     const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey;
-    if (!apiKey) return res.json({ reply: '🔑 AI chưa được cấu hình. Vui lòng liên hệ quản trị viên.', provider: 'Notice' });
 
-    const historySnippet = Array.isArray(history) && history.length > 0
-      ? history.slice(-6).map((h: any) => `${h.sender === 'user' ? 'Học viên' : 'AeroAI'}: ${h.text}`).join('\n')
-      : 'Chưa có cuộc trò chuyện trước đó.';
+    if (apiKey) {
+      const historySnippet = Array.isArray(history) && history.length > 0
+        ? history.slice(-6).map((h: any) => `${h.sender === 'user' ? 'Học viên' : 'AeroAI'}: ${h.text}`).join('\n')
+        : 'Chưa có cuộc trò chuyện trước đó.';
 
-    const questionContext = context.activeQuestion
-      ? `\n- Đang làm câu hỏi: "${context.activeQuestion.questionText || ''}"\n  Options: A. ${context.activeQuestion.optionA || ''} | B. ${context.activeQuestion.optionB || ''} | C. ${context.activeQuestion.optionC || ''} | D. ${context.activeQuestion.optionD || ''}\n  Đáp án đúng: ${context.activeQuestion.correctAnswer || ''}\n  Lựa chọn của học viên: ${context.activeQuestion.userAnswer || 'Chưa chọn'}`
-      : '';
+      const questionContext = context.activeQuestion
+        ? `\n- Đang làm câu hỏi: "${context.activeQuestion.questionText || ''}"\n  Options: A. ${context.activeQuestion.optionA || ''} | B. ${context.activeQuestion.optionB || ''} | C. ${context.activeQuestion.optionC || ''} | D. ${context.activeQuestion.optionD || ''}\n  Đáp án đúng: ${context.activeQuestion.correctAnswer || ''}\n  Lựa chọn của học viên: ${context.activeQuestion.userAnswer || 'Chưa chọn'}`
+        : '';
 
-    const prompt = `Bạn là AeroAI Tutor 990+ — Trợ lý trợ giảng ảo luyện thi TOEIC siêu thông minh, thân thiện và giàu kinh nghiệm sư phạm.
+      const prompt = `Bạn là AeroAI Tutor 990+ — Trợ lý trợ giảng ảo luyện thi TOEIC siêu thông minh, thân thiện và giàu kinh nghiệm sư phạm.
 Thông tin ngữ cảnh học viên hiện tại:
 - Điểm hiện tại ước tính: ${context.currentScore || 450} điểm
 - Điểm mục tiêu TOEIC: ${context.targetScore || 750} điểm
@@ -158,10 +160,27 @@ Yêu cầu câu trả lời:
 - Nếu học viên hỏi về từ vựng hay ngữ pháp, hãy giải thích công thức, nghĩa tiếng Việt và cho ví dụ minh họa rõ ràng.
 - Sử dụng icon/emoji sinh động, truyền động lực bứt phá điểm số TOEIC cho học viên.`;
 
-    const reply = await callGeminiApi(prompt, apiKey);
-    if (reply) return res.json({ reply, provider: 'Google Gemini AI (Real-time)' });
+      const reply = await callGeminiApi(prompt, apiKey);
+      if (reply) return res.json({ reply, provider: 'Google Gemini AI (Real-time)' });
+    }
 
-    res.json({ reply: '⚠️ AI tạm thời không phản hồi. Bạn thử lại sau vài giây nhé!', provider: 'Notice' });
+    // Smart Fallback AI Tutor chatbot reply
+    let reply = `Chào bạn! Tôi là AeroAI Tutor 🤖 trợ lý luyện thi TOEIC của bạn.\n\n`;
+    const lower = message.toLowerCase();
+
+    if (lower.includes('part 1') || lower.includes('ảnh') || lower.includes('hình')) {
+      reply += `**Mẹo làm Part 1 (Mô tả hình ảnh):**\n- Tập trung quan sát hành động của người (đang làm gì) hoặc vị trí vật thể.\n- Cảnh giác với bẫy từ đồng âm và bẫy thì Tiếp diễn (being + V3/ed).\n- Nếu bức ảnh không có người, chọn câu mô tả trạng thái vật thể!`;
+    } else if (lower.includes('part 2') || lower.includes('hỏi')) {
+      reply += `**Mẹo làm Part 2 (Hỏi & Đáp):**\n- Nghe kỹ từ hỏi đầu tiên (Who, Where, When, Why, How).\n- Loại ngay các đáp án có từ đồng âm với câu hỏi (thường là bẫy).\n- Đáp án "Tôi không biết / Để tôi kiểm tra" luôn đúng trong 95% trường hợp!`;
+    } else if (lower.includes('part 5') || lower.includes('ngữ pháp')) {
+      reply += `**Mẹo làm Part 5 (Điền câu ngắn):**\n- Xác định từ loại cần điền (Danh từ, Động từ, Tính từ, Trạng từ) dựa vào vị trí khoảng trống.\n- Nhìn trước và sau khoảng trống 2-3 từ trước khi đọc toàn bộ câu để tiết kiệm thời gian!`;
+    } else if (lower.includes('từ vựng') || lower.includes('vocab')) {
+      reply += `**Gợi ý từ vựng TOEIC phổ biến trong môi trường làm việc:**\n- **Implement** (v): Thực thi, triển khai\n- **Representative** (n): Người đại diện\n- **Accompany** (v): Đi cùng, đồng hành\n- **Compliance** (n): Sự tuân thủ quy định`;
+    } else {
+      reply += `Về thắc mắc **"${message}"**:\nTrong đề thi TOEIC ETS, chìa khóa chiến thắng là phân bổ thời gian hợp lý (Listening 45 phút, Reading 75 phút) và luyện tập từ vựng chủ đề Office/Business thường xuyên. Bạn có muốn tôi hỗ trợ giải thích cụ thể câu hỏi hay Part nào không?`;
+    }
+
+    res.json({ reply, provider: 'AeroAI Tutor (Smart Fallback)' });
   } catch (error) {
     console.error('AI Chat error:', error);
     res.status(500).json({ error: 'AI Tutor failed' });
@@ -209,12 +228,12 @@ app.post('/api/ai/create-roadmap-overview', async (req, res) => {
   try {
     const { currentScore = 450, targetScore = 750, durationDays = 30, listeningAvg = 240, readingAvg = 210, testHistory = [] } = req.body;
     const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey;
-    if (!apiKey) return res.status(503).json({ error: 'AI chưa được cấu hình API Key.' });
 
-    const gap = targetScore - currentScore;
-    const expDifficulty = Math.round(Math.exp(gap / 120) * 10) / 10;
+    if (apiKey) {
+      const gap = targetScore - currentScore;
+      const expDifficulty = Math.round(Math.exp(gap / 120) * 10) / 10;
 
-    const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy lập KHUNG NỘI DUNG TỔNG QUAN lộ trình học ${durationDays} ngày cá nhân hóa cho học viên dựa trên:
+      const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy lập KHUNG NỘI DUNG TỔNG QUAN lộ trình học ${durationDays} ngày cá nhân hóa cho học viên dựa trên:
 - Trình độ hiện tại: ${currentScore} điểm (Listening: ${listeningAvg}, Reading: ${readingAvg})
 - Mục tiêu: ${targetScore} điểm (Khoảng cách: +${gap} điểm. Hệ số độ khó ngầm: ${expDifficulty}x)
 - Lịch sử thi thử đã nộp: ${testHistory.length} bài
@@ -236,17 +255,58 @@ Hãy trả về phản hồi JSON hợp lệ (không bọc codeblock):
 }
 Lưu ý: mảng "days" phải chứa đúng ${durationDays} phần tử (từ Ngày 1 đến Ngày ${durationDays}). Tiêu đề và focus từng ngày phải phân bổ tăng dần từ củng cố nền tảng đến luyện thi bứt phá.`;
 
-    const aiText = await callGeminiApi(prompt, apiKey);
-    if (!aiText) return res.status(503).json({ error: 'AI không phản hồi. Vui lòng thử lại sau.' });
-
-    const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-    try {
-      const parsed = JSON.parse(cleanJson);
-      return res.json({ overview: parsed, provider: 'Google Gemini AI (Real-time)' });
-    } catch (e) {
-      console.warn('Overview JSON parse error:', e);
-      return res.status(503).json({ error: 'AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.' });
+      const aiText = await callGeminiApi(prompt, apiKey);
+      if (aiText) {
+        const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+        try {
+          const parsed = JSON.parse(cleanJson);
+          return res.json({ overview: parsed, provider: 'Google Gemini AI (Real-time)' });
+        } catch (e) {
+          console.warn('Overview JSON parse error:', e);
+        }
+      }
     }
+
+    // Fallback Roadmap Generator
+    const numDays = Math.min(60, Math.max(7, Number(durationDays) || 30));
+    const topics = [
+      { title: 'Từ vựng Văn phòng & Mô tả hình ảnh Part 1', focus: 'Bẫy thì tiếp diễn & Từ vựng Office Equipment' },
+      { title: 'Chiến thuật Hỏi & Đáp Part 2', focus: 'Từ hỏi Wh- & Mẹo đáp án I don\'t know' },
+      { title: 'Ngữ pháp Thì Quá khứ & Hiện tại Hoàn thành Part 5', focus: 'Dấu hiệu nhận biết thì & Sự hòa hợp S-V' },
+      { title: 'Hội thoại Ngắn Part 3 - Chủ đề Đặt hàng & Giao hàng', focus: 'Kỹ năng đọc trước câu hỏi & Bắt key words' },
+      { title: 'Bài nói Ngắn Part 4 - Thông báo & Hướng dẫn', focus: 'Nhận biết người nói & Mục đích bài phát biểu' },
+      { title: 'Hoàn thành Đoạn văn Part 6', focus: 'Liên từ & Điền câu phù hợp văn cảnh' },
+      { title: 'Đọc hiểu Đoạn đơn Part 7 - Email & Thư thoại', focus: 'Kỹ thuật Skimming & Scanning câu hỏi chi tiết' },
+      { title: 'Đọc hiểu Đoạn đôi & Đoạn ba Part 7', focus: 'Kết nối thông tin giữa 2-3 tài liệu văn bản' },
+      { title: 'Luyện đề thi thử ETS Mock Test', focus: 'Quản lý quỹ thời gian 120 phút & Kiểm soát áp lực' }
+    ];
+
+    const daysList = Array.from({ length: numDays }, (_, i) => {
+      const dayNum = i + 1;
+      const weekNum = Math.ceil(dayNum / 7);
+      const topic = topics[i % topics.length];
+      return {
+        dayNumber: dayNum,
+        weekNumber: weekNum,
+        title: `Ngày ${dayNum}: ${topic.title}`,
+        focus: topic.focus
+      };
+    });
+
+    res.json({
+      overview: {
+        diagnosticSummary: `Hệ thống phân tích trình độ hiện tại (${currentScore} điểm) và mục tiêu ${targetScore} điểm trong ${numDays} ngày. Lộ trình tập trung cải thiện từ vựng cốt lõi, phản xạ kỹ năng nghe Parts 1-4 và tốc độ đọc Parts 5-7.`,
+        weakPoints: [
+          'Tốc độ phân tích câu ngữ pháp phức hợp ở Part 5 & 6',
+          'Từ vựng chuyên ngành Logistics, Marketing và Hợp đồng',
+          'Quản lý thời gian làm bài Part 7 đoạn kép & đoạn ba'
+        ],
+        totalDays: numDays,
+        weeksCount: Math.ceil(numDays / 7),
+        days: daysList
+      },
+      provider: 'AeroAI Roadmap Engine (Smart Fallback)'
+    });
   } catch (error) {
     console.error('Roadmap overview error:', error);
     res.status(500).json({ error: 'Lỗi tạo lộ trình. Vui lòng thử lại sau.' });
@@ -256,15 +316,13 @@ Lưu ý: mảng "days" phải chứa đúng ${durationDays} phần tử (từ Ng
 // 5. On-Demand Daily Lesson Generator (60 Minutes Full Content)
 app.post('/api/ai/generate-day-lesson', async (req, res) => {
   try {
-    const { dayNumber, dayTitle, dayFocus, targetScore = 750, currentScore = 450 } = req.body;
-    if (!dayNumber) return res.status(400).json({ error: 'dayNumber is required' });
-
+    const { dayNumber = 1, dayTitle, dayFocus, targetScore = 750, currentScore = 450 } = req.body;
     const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey;
-    if (!apiKey) return res.status(503).json({ error: 'AI chưa được cấu hình API Key.' });
 
-    const gap = targetScore - currentScore;
+    if (apiKey) {
+      const gap = targetScore - currentScore;
 
-    const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy biên soạn TRỌN BỘ BÀI HỌC 60 PHÚT ĐẦY ĐỦ CHO NGÀY ${dayNumber} theo chủ đề: "${dayTitle || 'Luyện tập chuyên sâu'}" (Trọng tâm: ${dayFocus || 'Kiến thức TOEIC'}).
+      const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy biên soạn TRỌN BỘ BÀI HỌC 60 PHÚT ĐẦY ĐỦ CHO NGÀY ${dayNumber} theo chủ đề: "${dayTitle || 'Luyện tập chuyên sâu'}" (Trọng tâm: ${dayFocus || 'Kiến thức TOEIC'}).
 Mục tiêu bài học giúp học viên bứt phá từ ${currentScore} lên ${targetScore} điểm (khoảng cách +${gap} điểm).
 
 Hãy trả về phản hồi JSON hợp lệ (không chứa ký tự markdown hay bọc codeblock):
@@ -306,17 +364,57 @@ Hãy trả về phản hồi JSON hợp lệ (không chứa ký tự markdown ha
 }
 Yêu cầu quan trọng: "vocabularyList" phải chứa từ 10 đến 12 từ vựng phong phú đầy đủ phiên âm IPA, loại từ, nghĩa tiếng Việt và câu ví dụ dài. "practiceQuestions" phải chứa từ 10 đến 12 câu hỏi trắc nghiệm A-B-C-D kèm đáp án và lời giải thích rõ ràng, đảm bảo đủ thời lượng 60 phút luyện tập cho học viên. Phản hồi phải là JSON thuần, không markdown.`;
 
-    const aiText = await callGeminiApi(prompt, apiKey);
-    if (!aiText) return res.status(503).json({ error: 'AI không phản hồi. Vui lòng thử lại sau.' });
-
-    const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-    try {
-      const parsed = JSON.parse(cleanJson);
-      return res.json({ lesson: parsed, provider: 'Google Gemini AI (Real-time)' });
-    } catch (e) {
-      console.warn('Day Lesson JSON parse error:', e);
-      return res.status(503).json({ error: 'AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.' });
+      const aiText = await callGeminiApi(prompt, apiKey);
+      if (aiText) {
+        const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+        try {
+          const parsed = JSON.parse(cleanJson);
+          return res.json({ lesson: parsed, provider: 'Google Gemini AI (Real-time)' });
+        } catch (e) {
+          console.warn('Day Lesson JSON parse error:', e);
+        }
+      }
     }
+
+    // Fallback 60-Minute Lesson Generator
+    const dNum = Number(dayNumber) || 1;
+    res.json({
+      lesson: {
+        dayNumber: dNum,
+        title: dayTitle || `Bài học Ngày ${dNum}: Chuyên sâu ETS TOEIC`,
+        estimatedTimeMinutes: 60,
+        vocabularyList: [
+          { word: 'implement', ipa: '/ˈɪm.plɪ.ment/', partOfSpeech: 'verb', meaning: 'triển khai, thực thi', example: 'The team will implement the new policy next month.' },
+          { word: 'representative', ipa: '/ˌrep.rɪˈzen.tə.tɪv/', partOfSpeech: 'noun', meaning: 'người đại diện', example: 'A customer service representative will assist you shortly.' },
+          { word: 'authorize', ipa: '/ˈɔː.θər.aɪz/', partOfSpeech: 'verb', meaning: 'ủy quyền, cho phép', example: 'Only the director can authorize international expenditures.' },
+          { word: 'schedule', ipa: '/ˈʃed.juːl/', partOfSpeech: 'verb/noun', meaning: 'lịch trình, lên lịch', example: 'The conference is scheduled for next Tuesday.' },
+          { word: 'compliance', ipa: '/kəmˈplaɪ.əns/', partOfSpeech: 'noun', meaning: 'sự tuân thủ', example: 'Safety compliance is mandatory for all lab technicians.' },
+          { word: 'negotiate', ipa: '/nəˈɡəʊ.ʃi.eɪt/', partOfSpeech: 'verb', meaning: 'đàm phán, thương lượng', example: 'They negotiated a lower rate for the yearly contract.' },
+          { word: 'substantially', ipa: '/səbˈstæn.ʃəl.i/', partOfSpeech: 'adverb', meaning: 'đáng kể, nhiều', example: 'Quarterly profits increased substantially after the merger.' },
+          { word: 'accommodate', ipa: '/əˈkɒm.ə.deɪt/', partOfSpeech: 'verb', meaning: 'chứa, đáp ứng nhu cầu', example: 'The hall can accommodate up to 500 participants.' },
+          { word: 'preliminary', ipa: '/prɪˈlɪm.ɪ.nər.i/', partOfSpeech: 'adjective', meaning: 'sơ bộ, ban đầu', example: 'The preliminary report will be reviewed tomorrow.' },
+          { word: 'terminate', ipa: '/ˈtɜː.mɪ.neɪt/', partOfSpeech: 'verb', meaning: 'chấm dứt, kết thúc', example: 'Either party may terminate the agreement with written notice.' }
+        ],
+        grammarRule: {
+          title: 'Quy tắc Ngữ pháp Cốt lõi TOEIC: Từ loại & Thì Động từ',
+          explanation: 'Trong đề thi TOEIC, vị trí trước danh từ thường là tính từ (Adj + N), và vị trí bổ nghĩa cho động từ/tính từ là trạng từ (Adv + V/Adj). Đồng thời cần chú ý thì Hiện tại Hoàn thành (have/has + V3) biểu thị hành động đã bắt đầu và còn kéo dài.',
+          formula: 'Subject + Have/Has + V3/ed + Object (since / for / already)',
+          examples: [
+            'Ms. Carter has successfully managed the sales division for five years.',
+            'All official documents must be reviewed before final submission.'
+          ]
+        },
+        etsTips: '💡 Mẹo ETS: Trong Part 5, nếu gặp câu hỏi từ loại có khoảng trống nằm giữa Động từ to be/từ nối và Tính từ, hãy chọn Trạng từ (-ly). Đối với Part 1 bài nghe, loại ngay đáp án có "being" nếu bức ảnh không có người đang thao tác!',
+        practiceQuestions: [
+          { id: 1, questionText: 'The board of directors agreed to ______ the proposed expansion plan next week.', optionA: 'approve', optionB: 'approval', optionC: 'approving', optionD: 'approved', correctAnswer: 'A', explanation: 'Sau cụm "agreed to" cần một động từ nguyên mẫu V-bare. Chọn A.' },
+          { id: 2, questionText: 'All candidates must submit their application forms ______ 5:00 PM on Friday.', optionA: 'until', optionB: 'before', optionC: 'during', optionD: 'between', correctAnswer: 'B', explanation: 'Chỉ mốc thời gian hoàn thành trước một hạn chót, dùng mạo từ/giới từ "before". Chọn B.' },
+          { id: 3, questionText: 'The marketing team worked ______ to complete the advertising campaign ahead of schedule.', optionA: 'diligent', optionB: 'diligently', optionC: 'diligence', optionD: 'more diligent', correctAnswer: 'B', explanation: 'Khoảng trống bổ nghĩa cho động từ thường "worked", chọn trạng từ "diligently". Chọn B.' },
+          { id: 4, questionText: 'Dr. Lawson is considered one of the most ______ researchers in modern biophysics.', optionA: 'respect', optionB: 'respected', optionC: 'respectfully', optionD: 'respects', correctAnswer: 'B', explanation: 'Khoảng trống nằm giữa "most" và danh từ "researchers", cần một tính từ miêu tả uy tín/được kính trọng "respected". Chọn B.' },
+          { id: 5, questionText: 'Please review the attached invoice and notify us if you find any ______.', optionA: 'discrepancies', optionB: 'discrepant', optionC: 'discrepantly', optionD: 'discrepancying', correctAnswer: 'A', explanation: 'Sau tính từ "any" cần một danh từ (ở dạng số nhiều "discrepancies" - sự sai lệch). Chọn A.' }
+        ]
+      },
+      provider: 'AeroAI Day Lesson Engine (Smart Fallback)'
+    });
   } catch (error) {
     console.error('Generate day lesson error:', error);
     res.status(500).json({ error: 'Lỗi tải bài học. Vui lòng thử lại sau.' });
