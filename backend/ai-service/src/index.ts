@@ -15,7 +15,13 @@ app.use(express.json());
 let currentAIConfig: AIConfig = { ...defaultAIConfig };
 
 // Database Persistence for System Configs
-const dbUrl = process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'toeic_user'}:${process.env.DB_PASSWORD || '0FcKcaH548fGZFvD66F68KuGFdUyKCWg'}@${process.env.DB_HOST || 'dpg-d9ndhsdaeets73bn2jm0-a.oregon-postgres.render.com'}/${process.env.DB_NAME || 'toeic_db_qwyv'}?sslmode=require`;
+let rawDbUrl = process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'toeic_user'}:${process.env.DB_PASSWORD || '0FcKcaH548fGZFvD66F68KuGFdUyKCWg'}@${process.env.DB_HOST || 'dpg-d9ndhsdaeets73bn2jm0-a.oregon-postgres.render.com'}/${process.env.DB_NAME || 'toeic_db_qwyv'}?sslmode=require`;
+
+if (rawDbUrl.startsWith('postgres://')) {
+  rawDbUrl = rawDbUrl.replace(/^postgres:\/\//, 'postgresql://');
+}
+
+const dbUrl = rawDbUrl;
 
 const pool = new Pool({
   connectionString: dbUrl,
