@@ -355,23 +355,15 @@ app.post('/api/ai/create-roadmap-overview', async (req, res) => {
     if (apiKey) {
       const gap = targetScore - currentScore;
 
-      const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy lập LỘ TRÌNH HỌC TÙY CHỈNH CHÍNH XÁC ${numDays} NGÀY cho học viên:
-- Điểm hiện tại: ${currentScore} điểm (Listening: ${listeningAvg}, Reading: ${readingAvg})
-- Điểm mục tiêu: ${targetScore} điểm (Khoảng cách: +${gap} điểm)
-- Lịch sử làm bài thi thử: ${testHistory.length} bài đã nộp
+      const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy lập KHUNG NỘI DUNG TỔNG QUAN lộ trình học ${numDays} ngày cá nhân hóa cho học viên từ ${currentScore} điểm (Listening: ${listeningAvg}, Reading: ${readingAvg}) lên mục tiêu ${targetScore} điểm (khoảng cách +${gap} điểm, số bài thi đã nộp: ${testHistory.length} bài).
 
-Yêu cầu đầu ra:
-1. "diagnosticSummary": Phân tích ngắn 2-3 câu CÁ NHÂN HÓA cho điểm ${currentScore} -> ${targetScore} trong ${numDays} ngày.
-2. "weakPoints": 3 điểm yếu lớn nhất cần khắc phục dựa trên điểm Listening ${listeningAvg} và Reading ${readingAvg}.
-3. "days": Mảng đúng ${numDays} phần tử (từ 1 đến ${numDays}). Mỗi ngày có tiêu đề (title) và trọng tâm (focus) RIÊNG BIỆT, ĐỘNG, BÁM SÁT MỤC TIÊU ${targetScore} ĐIỂM.
-
-Trả về DUY NHẤT JSON hợp lệ (không chứa markdown codeblock):
+Trả về duy nhất JSON hợp lệ (không chứa markdown codeblock):
 {
-  "diagnosticSummary": "Phân tích cá nhân hóa cho học viên...",
-  "weakPoints": ["Điểm yếu 1", "Điểm yếu 2", "Điểm yếu 3"],
-  "days": [
-    { "dayNumber": 1, "weekNumber": 1, "title": "Ngày 1: Tiêu đề bám sát mục tiêu ${targetScore}", "focus": "Trọng tâm bài học" }
-  ]
+  "diagnosticSummary": "Phân tích 2-3 câu CÁ NHÂN HÓA cho điểm ${currentScore} -> ${targetScore} trong ${numDays} ngày",
+  "weakPoints": ["Điểm yếu 1 dựa trên ${currentScore} điểm", "Điểm yếu 2", "Điểm yếu 3"],
+  "phase1": { "name": "Củng cố Nền tảng Part 1-2 (${targetScore}+)", "focus": "Mô tả hình ảnh & Hỏi đáp Wh-" },
+  "phase2": { "name": "Tăng tốc Ngữ pháp & Bài nói Part 3-5 (${targetScore}+)", "focus": "Từ loại, Thì động từ & Nghe hội thoại" },
+  "phase3": { "name": "Bứt phá Đọc hiểu & Thi thử Part 6-7 (${targetScore}+)", "focus": "Kỹ thuật Skimming/Scanning & Luyện đề ETS" }
 }`;
 
       const aiText = await callGeminiApi(prompt, apiKey);
