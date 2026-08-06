@@ -64,7 +64,7 @@ async function callGeminiApi(prompt: string, apiKey: string, customSystemInstruc
     contents: [{ parts: [{ text: `${systemText}\n\n${prompt}` }] }]
   };
 
-  const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+  const models = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.0-flash-lite-001', 'gemini-2.0-flash'];
   for (const model of models) {
     for (const payload of [payloadWithSystem, payloadSimple]) {
       try {
