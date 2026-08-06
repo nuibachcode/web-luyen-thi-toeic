@@ -146,6 +146,8 @@ export default function AIRoadmapWidget({ onActiveDayChange }: { onActiveDayChan
         readingAvg = Math.round(examHistory.reduce((acc, r) => acc + (r.readingScore || r.reading_score || 210), 0) / examHistory.length);
       }
 
+      const apiKey = localStorage.getItem('toeic_gemini_api_key') || '';
+
       // Step 1: Fast Master Overview Generation (< 1.5s)
       const res = await fetch(`${gateway}/api/ai/create-roadmap-overview`, {
         method: 'POST',
@@ -154,6 +156,7 @@ export default function AIRoadmapWidget({ onActiveDayChange }: { onActiveDayChan
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
+          apiKey,
           currentScore,
           targetScore,
           durationDays,
@@ -212,6 +215,8 @@ export default function AIRoadmapWidget({ onActiveDayChange }: { onActiveDayChan
         currentScore = Math.max(...examHistory.map(r => r.totalScore || r.total_score || 450));
       }
 
+      const apiKey = localStorage.getItem('toeic_gemini_api_key') || '';
+
       // On-demand Lazy Generation for THAT DAY ONLY
       const res = await fetch(`${gateway}/api/ai/generate-day-lesson`, {
         method: 'POST',
@@ -220,6 +225,7 @@ export default function AIRoadmapWidget({ onActiveDayChange }: { onActiveDayChan
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
+          apiKey,
           dayNumber,
           dayTitle,
           dayFocus,

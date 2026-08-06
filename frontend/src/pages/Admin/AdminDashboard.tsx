@@ -368,27 +368,55 @@ function Users() {
 }
 
 function Settings({ ai = false }: { ai?: boolean }) {
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('toeic_gemini_api_key') || '');
+  const [msg, setMsg] = useState('');
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (apiKey.trim()) {
+      localStorage.setItem('toeic_gemini_api_key', apiKey.trim());
+      setMsg('✅ Đã lưu Google Gemini API Key thành công! Các chức năng AI giờ đây sẽ gọi trực tiếp mô hình Google Gemini AI real-time.');
+    } else {
+      localStorage.removeItem('toeic_gemini_api_key');
+      setMsg('ℹ️ Đã xóa API Key.');
+    }
+    setTimeout(() => setMsg(''), 4000);
+  };
+
   return (
     <section className="settings-stack">
       <article className="card form-section">
-        <h2>{ai ? 'Mô hình gợi ý lộ trình AI' : 'Thông tin nền tảng'}</h2>
+        <h2>{ai ? 'Cấu hình Mô hình & Google Gemini AI Key' : 'Thông tin nền tảng'}</h2>
         {ai ? (
-          <>
-            <label>Mô hình AI
-              <select>
-                <option>GPT-4o mini</option>
-                <option>GPT-4o</option>
-                <option>Gemini Flash AI</option>
+          <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontWeight: 600 }}>
+              Google Gemini API Key (Real-time LLM)
+              <input
+                type="password"
+                placeholder="Nhập mã AIzaSy... (Lấy miễn phí từ Google AI Studio)"
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                style={{ padding: '10px 14px', borderRadius: 8, border: '1.5px solid #cbd5e1', fontSize: 14 }}
+              />
+              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 400 }}>
+                Nhận key miễn phí 100% tại <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'underline' }}>Google AI Studio (aistudio.google.com)</a>
+              </span>
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontWeight: 600 }}>
+              Mô hình AI mặc định
+              <select style={{ padding: '10px 14px', borderRadius: 8, border: '1.5px solid #cbd5e1', fontSize: 14 }}>
+                <option>Google Gemini 2.5 Flash (Tốc độ & Thông minh)</option>
+                <option>Google Gemini 2.0 Flash</option>
+                <option>Google Gemini 1.5 Flash</option>
               </select>
             </label>
-            <label>Hướng dẫn hệ thống
-              <textarea rows={5} defaultValue="Bạn là trợ lý học tập TOEIC tận tâm. Hãy đưa ra lộ trình rõ ràng, khích lệ và bám sát dữ liệu năng lực." />
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontWeight: 600 }}>
+              System Prompt (Hướng dẫn hệ thống)
+              <textarea rows={4} defaultValue="Bạn là AeroAI Tutor 990+ — Trợ lý trợ giảng luyện thi TOEIC ETS chuyên nghiệp, uyên bác và giàu kinh nghiệm sư phạm." style={{ padding: '10px 14px', borderRadius: 8, border: '1.5px solid #cbd5e1', fontSize: 14 }} />
             </label>
-            <label className="toggle">Bật gợi ý AI tự động
-              <input type="checkbox" defaultChecked />
-              <span />
-            </label>
-          </>
+            {msg && <div style={{ padding: '10px 14px', borderRadius: 8, background: '#dcfce7', color: '#15803d', fontWeight: 600, fontSize: 13 }}>{msg}</div>}
+            <Button type="submit" style={{ marginTop: 8, alignSelf: 'flex-start' }}>Lưu cấu hình AI</Button>
+          </form>
         ) : (
           <div className="form-grid">
             <label>Tên nền tảng<input defaultValue="AeroTOEIC AI" /></label>
@@ -397,7 +425,6 @@ function Settings({ ai = false }: { ai?: boolean }) {
             <label>Múi giờ<select><option>Asia/Ho_Chi_Minh</option></select></label>
           </div>
         )}
-        <Button style={{ marginTop: 16 }}>Lưu cấu hình</Button>
       </article>
     </section>
   );

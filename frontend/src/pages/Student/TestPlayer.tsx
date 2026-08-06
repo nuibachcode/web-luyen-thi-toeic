@@ -61,10 +61,12 @@ export default function TestPlayer() {
     setAiLoading(prev => ({ ...prev, [qNum]: true }));
     try {
       const gateway = getApiGatewayUrl();
+      const apiKey = localStorage.getItem('toeic_gemini_api_key') || '';
       const res = await fetch(`${gateway}/api/ai/explain`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          apiKey,
           questionText: q.question_text,
           options: [
             { label: 'A', text: q.option_a || '' },
@@ -98,10 +100,12 @@ export default function TestPlayer() {
     setTranscriptLoading(prev => ({ ...prev, [grp.id]: true }));
     try {
       const gateway = getApiGatewayUrl();
+      const apiKey = localStorage.getItem('toeic_gemini_api_key') || '';
       const res = await fetch(`${gateway}/api/ai/generate-transcript`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          apiKey,
           part: grp.part,
           questions: grp.questions
         })

@@ -25,7 +25,23 @@ export default function AITutorWidget() {
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [customKey, setCustomKey] = useState(() => localStorage.getItem('toeic_gemini_api_key') || '');
+  const [keyMsg, setKeyMsg] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleSaveKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = customKey.trim();
+    if (trimmed) {
+      localStorage.setItem('toeic_gemini_api_key', trimmed);
+      setKeyMsg('✅ Đã lưu Google Gemini API Key!');
+    } else {
+      localStorage.removeItem('toeic_gemini_api_key');
+      setKeyMsg('ℹ️ Đã xóa API Key cá nhân.');
+    }
+    setTimeout(() => setKeyMsg(''), 2000);
+  };
 
   useEffect(() => {
     try {
@@ -63,6 +79,7 @@ export default function AITutorWidget() {
       const gateway = getApiGatewayUrl();
       const token = localStorage.getItem('toeic_jwt');
       const targetScore = Number(localStorage.getItem('toeic_target_score')) || 750;
+      const savedApiKey = localStorage.getItem('toeic_gemini_api_key') || '';
 
       const res = await fetch(`${gateway}/api/ai/chat`, {
         method: 'POST',
@@ -72,6 +89,7 @@ export default function AITutorWidget() {
         },
         body: JSON.stringify({
           message: textToSend,
+          apiKey: savedApiKey,
           history: newMessages.slice(-6),
           context: {
             page: window.location.pathname,
@@ -137,6 +155,13 @@ export default function AITutorWidget() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
+                onClick={() => setShowKeyModal(!showKeyModal)}
+                title="Cấu hình Google Gemini API Key"
+                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#ffffff', fontSize: '13px', cursor: 'pointer' }}
+              >
+                🔑
+              </button>
+              <button
                 onClick={handleClearHistory}
                 title="Xóa lịch sử trò chuyện"
                 style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '15px', cursor: 'pointer', opacity: 0.8 }}
@@ -151,6 +176,36 @@ export default function AITutorWidget() {
               </button>
             </div>
           </div>
+
+          {/* Key Settings Drawer */}
+          {showKeyModal && (
+            <div style={{ background: '#eff6ff', padding: '12px 16px', borderBottom: '1px solid #bfdbfe' }}>
+              <form onSubmit={handleSaveKey} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e40af' }}>
+                  🔑 Google Gemini API Key (Real-time AI)
+                </span>
+                <input
+                  type="password"
+                  placeholder="Dán mã AIzaSy... từ Google AI Studio"
+                  value={customKey}
+                  onChange={e => setCustomKey(e.target.value)}
+                  style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid #93c5fd', fontSize: '12px', outline: 'none' }}
+                />
+                {keyMsg && <div style={{ fontSize: '11px', fontWeight: 600, color: keyMsg.startsWith('✅') ? '#15803d' : '#1e40af' }}>{keyMsg}</div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'underline' }}>
+                    Lấy API Key miễn phí →
+                  </a>
+                  <button
+                    type="submit"
+                    style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Lưu Key
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           {/* Quick Prompts */}
           <div style={{ background: '#f8fafc', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '6px', overflowX: 'auto' }}>
