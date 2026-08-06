@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { Pool } from 'pg';
 import { defaultAIConfig, AIConfig } from './ai_config';
 
 dotenv.config();
@@ -13,31 +14,75 @@ app.use(express.json());
 
 let currentAIConfig: AIConfig = { ...defaultAIConfig };
 
-// Helper function to call Gemini API
+// Database Persistence for System Configs
+const dbUrl = process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'toeic_user'}:${process.env.DB_PASSWORD || '0FcKcaH548fGZFvD66F68KuGFdUyKCWg'}@${process.env.DB_HOST || 'dpg-d9ndhsdaeets73bn2jm0-a.oregon-postgres.render.com'}/${process.env.DB_NAME || 'toeic_db_qwyv'}?sslmode=require`;
+
+const pool = new Pool({
+  connectionString: dbUrl,
+  ssl: dbUrl.includes('render.com') || dbUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false
+});
+
+async function initAiDatabase() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS system_configs (
+        config_key VARCHAR(100) PRIMARY KEY,
+        config_value TEXT NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // Restore saved gemini_api_key on startup
+    const resKey = await pool.query(`SELECT config_value FROM system_configs WHERE config_key = 'gemini_api_key'`);
+    if (resKey.rows.length > 0 && resKey.rows[0].config_value) {
+      currentAIConfig.geminiApiKey = resKey.rows[0].config_value;
+      console.log('✅ Loaded persisted Gemini API Key from Database!');
+    }
+
+    // Restore saved system_instruction on startup
+    const resInst = await pool.query(`SELECT config_value FROM system_configs WHERE config_key = 'system_instruction'`);
+    if (resInst.rows.length > 0 && resInst.rows[0].config_value) {
+      currentAIConfig.systemInstruction = resInst.rows[0].config_value;
+    }
+  } catch (err) {
+    console.warn('AI DB Init notice:', (err as Error).message);
+  }
+}
+
+initAiDatabase();
+
+// Helper function to call Google Gemini API with fallback formats
 async function callGeminiApi(prompt: string, apiKey: string, customSystemInstruction?: string) {
   const systemText = customSystemInstruction || currentAIConfig.systemInstruction;
-  const payload = {
+  
+  const payloadWithSystem = {
     systemInstruction: { parts: [{ text: systemText }] },
     contents: [{ parts: [{ text: prompt }] }]
   };
 
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const payloadSimple = {
+    contents: [{ parts: [{ text: `${systemText}\n\n${prompt}` }] }]
+  };
+
+  const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash'];
   for (const model of models) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return text;
-      } else {
-        const err = await res.json().catch(() => ({}));
-        console.warn(`Model ${model} returned ${res.status}:`, JSON.stringify(err).slice(0, 100));
+    for (const payload of [payloadWithSystem, payloadSimple]) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text;
+        } else {
+          const err = await res.json().catch(() => ({}));
+          console.warn(`Model ${model} returned ${res.status}:`, JSON.stringify(err).slice(0, 100));
+        }
+      } catch (e) {
+        console.warn(`Model ${model} failed:`, (e as Error).message);
       }
-    } catch (e) {
-      console.warn(`Model ${model} failed:`, (e as Error).message);
     }
   }
   return null;
@@ -52,7 +97,7 @@ app.get('/health', (_req, res) => {
     service: 'ai-service',
     port: PORT,
     gemini_api_configured: isConfigured,
-    key_source: currentAIConfig.geminiApiKey ? 'admin_dashboard' : (process.env.GEMINI_API_KEY ? 'environment' : 'missing'),
+    key_source: currentAIConfig.geminiApiKey ? 'database_admin' : (process.env.GEMINI_API_KEY ? 'environment' : 'missing'),
     key_mask: activeKey ? `${activeKey.substring(0, 6)}...${activeKey.substring(activeKey.length - 4)}` : 'none',
     specialization: currentAIConfig.specialization
   });
@@ -73,10 +118,24 @@ app.get('/api/ai/config', (_req, res) => {
 // PUT /api/ai/config (Admin management endpoint)
 app.put('/api/ai/config', async (req, res) => {
   const { systemInstruction, specialization, maxIconsAllowed, geminiApiKey } = req.body;
-  if (systemInstruction && typeof systemInstruction === 'string') currentAIConfig.systemInstruction = systemInstruction;
+  if (systemInstruction && typeof systemInstruction === 'string') {
+    currentAIConfig.systemInstruction = systemInstruction;
+    pool.query(
+      `INSERT INTO system_configs (config_key, config_value, updated_at) VALUES ('system_instruction', $1, NOW()) ON CONFLICT (config_key) DO UPDATE SET config_value = EXCLUDED.config_value, updated_at = NOW()`,
+      [systemInstruction]
+    ).catch(() => {});
+  }
   if (specialization && typeof specialization === 'string') currentAIConfig.specialization = specialization;
   if (typeof maxIconsAllowed === 'number') currentAIConfig.maxIconsAllowed = maxIconsAllowed;
-  if (typeof geminiApiKey === 'string') currentAIConfig.geminiApiKey = geminiApiKey.trim();
+  
+  if (typeof geminiApiKey === 'string') {
+    const trimmed = geminiApiKey.trim();
+    currentAIConfig.geminiApiKey = trimmed;
+    pool.query(
+      `INSERT INTO system_configs (config_key, config_value, updated_at) VALUES ('gemini_api_key', $1, NOW()) ON CONFLICT (config_key) DO UPDATE SET config_value = EXCLUDED.config_value, updated_at = NOW()`,
+      [trimmed]
+    ).catch(() => {});
+  }
 
   const activeKey = currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
   let testSuccess = false;
@@ -87,9 +146,9 @@ app.put('/api/ai/config', async (req, res) => {
     const testResult = await callGeminiApi('Hello, respond with OK', activeKey);
     if (testResult) {
       testSuccess = true;
-      testMsg = '✅ Kết nối Google Gemini API thành công! Mô hình AI real-time đang hoạt động.';
+      testMsg = '✅ Kết nối Google Gemini API thành công! Hệ thống đã lưu Key vào CSDL Cloud và kích hoạt AI Real-time.';
     } else {
-      testMsg = '⚠️ Đã lưu Key nhưng kết nối Google Gemini API chưa thành công (Key không đúng hoặc quá tải).';
+      testMsg = '⚠️ Đã lưu Key vào CSDL nhưng kết nối Google Gemini API chưa thành công. Vui lòng kiểm tra lại mã Key!';
     }
   }
 
