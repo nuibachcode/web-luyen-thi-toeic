@@ -66,7 +66,12 @@ export default function TestPlayer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           questionText: q.question_text,
-          options: q.options,
+          options: [
+            { label: 'A', text: q.option_a || '' },
+            { label: 'B', text: q.option_b || '' },
+            { label: 'C', text: q.option_c || '' },
+            { label: 'D', text: q.option_d || '' }
+          ],
           correctAnswer: q.correct_answer,
           explanation: q.giai_thich_chi_tiet || q.dich_nghia,
           passageText: groups[currentGroupIdx]?.passage_text
