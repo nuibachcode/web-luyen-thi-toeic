@@ -91,7 +91,7 @@ async function callGeminiApi(prompt: string, apiKey: string, customSystemInstruc
 // Health Check
 app.get('/health', (_req, res) => {
   const activeKey = currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
-  const isConfigured = Boolean(activeKey && activeKey.startsWith('AIzaSy'));
+  const isConfigured = Boolean(activeKey && activeKey.length > 10);
   res.json({
     status: 'AI Service is running!',
     service: 'ai-service',
@@ -110,7 +110,7 @@ app.get('/api/ai/config', (_req, res) => {
     config: {
       ...currentAIConfig,
       geminiApiKey: activeKey ? `${activeKey.substring(0, 6)}...${activeKey.substring(activeKey.length - 4)}` : '',
-      isKeyActive: Boolean(activeKey && activeKey.startsWith('AIzaSy'))
+      isKeyActive: Boolean(activeKey && activeKey.length > 10)
     }
   });
 });
@@ -148,7 +148,7 @@ app.put('/api/ai/config', async (req, res) => {
       testSuccess = true;
       testMsg = '✅ Kết nối Google Gemini API thành công! Hệ thống đã lưu Key vào CSDL Cloud và kích hoạt AI Real-time.';
     } else {
-      testMsg = '⚠️ Đã lưu Key vào CSDL nhưng kết nối Google Gemini API chưa thành công. Vui lòng kiểm tra lại mã Key!';
+      testMsg = '⚠️ Đã lưu Key vào CSDL nhưng Google API trả về lỗi 401 (Key bị giới hạn quyền hoặc chưa bật API Generative Language). Hãy kiểm tra nút "+ Create API key" trên Google AI Studio!';
     }
   }
 
