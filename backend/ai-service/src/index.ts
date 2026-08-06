@@ -326,6 +326,25 @@ Yêu cầu định dạng đầu ra:
   }
 });
 
+function extractJsonObject(text: string) {
+  if (!text) return null;
+  const cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  try {
+    return JSON.parse(cleanText);
+  } catch (e) {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(text.slice(start, end + 1));
+      } catch (err) {
+        console.warn('Regex JSON parse failed:', (err as Error).message);
+      }
+    }
+  }
+  return null;
+}
+
 // 4. Roadmap Master Overview Generator
 app.post('/api/ai/create-roadmap-overview', async (req, res) => {
   try {
@@ -360,12 +379,9 @@ Lưu ý: mảng "days" phải chứa đúng ${durationDays} phần tử (từ Ng
 
       const aiText = await callGeminiApi(prompt, apiKey);
       if (aiText) {
-        const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-        try {
-          const parsed = JSON.parse(cleanJson);
+        const parsed = extractJsonObject(aiText);
+        if (parsed && parsed.days && Array.isArray(parsed.days)) {
           return res.json({ overview: parsed, provider: 'Google Gemini AI (Real-time)' });
-        } catch (e) {
-          console.warn('Overview JSON parse error:', e);
         }
       }
     }
@@ -469,12 +485,9 @@ Yêu cầu quan trọng: "vocabularyList" phải chứa từ 10 đến 12 từ v
 
       const aiText = await callGeminiApi(prompt, apiKey);
       if (aiText) {
-        const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-        try {
-          const parsed = JSON.parse(cleanJson);
+        const parsed = extractJsonObject(aiText);
+        if (parsed && (parsed.vocabularyList || parsed.grammarRule)) {
           return res.json({ lesson: parsed, provider: 'Google Gemini AI (Real-time)' });
-        } catch (e) {
-          console.warn('Day Lesson JSON parse error:', e);
         }
       }
     }

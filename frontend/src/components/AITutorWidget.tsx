@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { getApiGatewayUrl } from '../config/api';
+import { useAuth } from '../context/AuthContext';
 
 type Message = {
   sender: 'user' | 'ai';
@@ -12,23 +13,45 @@ const DEFAULT_WELCOME: Message = {
 };
 
 export default function AITutorWidget() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>(() => {
-    try {
-      const saved = localStorage.getItem('toeic_chat_history');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.warn('Failed to parse chat history:', e);
-    }
-    return [DEFAULT_WELCOME];
-  });
+  const { user } = useAuth();
+  const storageKey = user?.id ? `toeic_chat_history_${user.id}` : 'toeic_chat_history_guest';
 
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([DEFAULT_WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [customKey, setCustomKey] = useState(() => localStorage.getItem('toeic_gemini_api_key') || '');
   const [keyMsg, setKeyMsg] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load user-specific chat history
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse chat history:', e);
+    }
+    setMessages([DEFAULT_WELCOME]);
+  }, [storageKey]);
+
+  // Save user-specific chat history
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(messages));
+      } catch (e) {
+        console.warn('Failed to save chat history:', e);
+      }
+    }
+  }, [messages, storageKey]);
 
   const handleSaveKey = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,14 +66,6 @@ export default function AITutorWidget() {
     setTimeout(() => setKeyMsg(''), 2000);
   };
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('toeic_chat_history', JSON.stringify(messages));
-    } catch (e) {
-      console.warn('Failed to save chat history:', e);
-    }
-  }, [messages]);
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -62,7 +77,7 @@ export default function AITutorWidget() {
   const handleClearHistory = () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện này?')) {
       setMessages([DEFAULT_WELCOME]);
-      localStorage.removeItem('toeic_chat_history');
+      localStorage.removeItem(storageKey);
     }
   };
 
