@@ -45,36 +45,70 @@ async function callGeminiApi(prompt: string, apiKey: string, customSystemInstruc
 
 // Health Check
 app.get('/health', (_req, res) => {
-  const envKey = process.env.GEMINI_API_KEY;
+  const activeKey = currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
+  const isConfigured = Boolean(activeKey && activeKey.startsWith('AIzaSy'));
   res.json({
     status: 'AI Service is running!',
     service: 'ai-service',
     port: PORT,
-    gemini_api_configured: Boolean(envKey),
-    key_source: envKey ? 'environment' : 'missing',
+    gemini_api_configured: isConfigured,
+    key_source: currentAIConfig.geminiApiKey ? 'admin_dashboard' : (process.env.GEMINI_API_KEY ? 'environment' : 'missing'),
+    key_mask: activeKey ? `${activeKey.substring(0, 6)}...${activeKey.substring(activeKey.length - 4)}` : 'none',
     specialization: currentAIConfig.specialization
   });
 });
 
 // GET /api/ai/config
 app.get('/api/ai/config', (_req, res) => {
-  res.json({ config: currentAIConfig });
+  const activeKey = currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY || '';
+  res.json({
+    config: {
+      ...currentAIConfig,
+      geminiApiKey: activeKey ? `${activeKey.substring(0, 6)}...${activeKey.substring(activeKey.length - 4)}` : '',
+      isKeyActive: Boolean(activeKey && activeKey.startsWith('AIzaSy'))
+    }
+  });
 });
 
-// PUT /api/ai/config
-app.put('/api/ai/config', (req, res) => {
-  const { systemInstruction, specialization, maxIconsAllowed } = req.body;
+// PUT /api/ai/config (Admin management endpoint)
+app.put('/api/ai/config', async (req, res) => {
+  const { systemInstruction, specialization, maxIconsAllowed, geminiApiKey } = req.body;
   if (systemInstruction && typeof systemInstruction === 'string') currentAIConfig.systemInstruction = systemInstruction;
   if (specialization && typeof specialization === 'string') currentAIConfig.specialization = specialization;
   if (typeof maxIconsAllowed === 'number') currentAIConfig.maxIconsAllowed = maxIconsAllowed;
-  res.json({ message: 'Cập nhật cấu hình AI thành công!', config: currentAIConfig });
+  if (typeof geminiApiKey === 'string') currentAIConfig.geminiApiKey = geminiApiKey.trim();
+
+  const activeKey = currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
+  let testSuccess = false;
+  let testMsg = 'Đã lưu cấu hình';
+
+  if (activeKey) {
+    // Quick test against Gemini API
+    const testResult = await callGeminiApi('Hello, respond with OK', activeKey);
+    if (testResult) {
+      testSuccess = true;
+      testMsg = '✅ Kết nối Google Gemini API thành công! Mô hình AI real-time đang hoạt động.';
+    } else {
+      testMsg = '⚠️ Đã lưu Key nhưng kết nối Google Gemini API chưa thành công (Key không đúng hoặc quá tải).';
+    }
+  }
+
+  res.json({
+    message: testMsg,
+    testSuccess,
+    config: {
+      ...currentAIConfig,
+      geminiApiKey: activeKey ? `${activeKey.substring(0, 6)}...${activeKey.substring(activeKey.length - 4)}` : '',
+      isKeyActive: testSuccess
+    }
+  });
 });
 
 // 1. AI Question Explanation & Vocabulary Extractor
 app.post('/api/ai/explain', async (req, res) => {
   try {
     const { questionText, options, correctAnswer, explanation, passageText } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey;
+    const apiKey = req.body.apiKey || currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
 
     if (apiKey) {
       const prompt = `Hãy phân tích câu hỏi TOEIC sau:
@@ -133,7 +167,7 @@ app.post('/api/ai/chat', async (req, res) => {
     const { message, history = [], context = {} } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey;
+    const apiKey = req.body.apiKey || currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
 
     if (apiKey) {
       const historySnippet = Array.isArray(history) && history.length > 0
@@ -191,7 +225,7 @@ Yêu cầu câu trả lời:
 app.post('/api/ai/generate-transcript', async (req, res) => {
   try {
     const { part = 1, questions = [] } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey;
+    const apiKey = req.body.apiKey || currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
 
     if (apiKey) {
       const qSnippet = Array.isArray(questions)
@@ -227,7 +261,7 @@ Yêu cầu định dạng đầu ra:
 app.post('/api/ai/create-roadmap-overview', async (req, res) => {
   try {
     const { currentScore = 450, targetScore = 750, durationDays = 30, listeningAvg = 240, readingAvg = 210, testHistory = [] } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey;
+    const apiKey = req.body.apiKey || currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
 
     if (apiKey) {
       const gap = targetScore - currentScore;
@@ -317,7 +351,7 @@ Lưu ý: mảng "days" phải chứa đúng ${durationDays} phần tử (từ Ng
 app.post('/api/ai/generate-day-lesson', async (req, res) => {
   try {
     const { dayNumber = 1, dayTitle, dayFocus, targetScore = 750, currentScore = 450 } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY || req.body.apiKey;
+    const apiKey = req.body.apiKey || currentAIConfig.geminiApiKey || process.env.GEMINI_API_KEY;
 
     if (apiKey) {
       const gap = targetScore - currentScore;

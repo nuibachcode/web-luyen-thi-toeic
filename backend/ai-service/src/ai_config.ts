@@ -3,6 +3,7 @@ export interface AIConfig {
   systemInstruction: string;
   maxIconsAllowed: number;
   forbiddenMarkdown: string[];
+  geminiApiKey?: string;
 }
 
 export const defaultAIConfig: AIConfig = {
