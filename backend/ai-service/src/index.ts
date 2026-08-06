@@ -55,23 +55,33 @@ initAiDatabase();
 async function callGeminiApi(prompt: string, apiKey: string, customSystemInstruction?: string) {
   const systemText = customSystemInstruction || currentAIConfig.systemInstruction;
   
+  const payloadSimple = {
+    contents: [{ parts: [{ text: `${systemText}\n\n${prompt}` }] }]
+  };
+
   const payloadWithSystem = {
     systemInstruction: { parts: [{ text: systemText }] },
     contents: [{ parts: [{ text: prompt }] }]
   };
 
-  const payloadSimple = {
-    contents: [{ parts: [{ text: `${systemText}\n\n${prompt}` }] }]
-  };
-
-  const models = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.0-flash-lite-001', 'gemini-2.0-flash'];
+  const models = ['gemini-flash-latest', 'gemini-2.0-flash-lite-001', 'gemini-2.0-flash'];
   for (const model of models) {
-    for (const payload of [payloadWithSystem, payloadSimple]) {
+    for (const payload of [payloadSimple, payloadWithSystem]) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+          }
         );
+        clearTimeout(timeoutId);
+
         if (res.ok) {
           const data = await res.json();
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
