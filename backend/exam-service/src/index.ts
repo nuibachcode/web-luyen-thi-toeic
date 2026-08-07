@@ -556,30 +556,30 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
     if (rawJsonItems && Array.isArray(rawJsonItems)) {
       items = rawJsonItems;
     } else {
-      // Clean multi-line backslashes/carets and normalize space
+      // Clean Windows CMD carets (^), multi-line backslashes and normalize space
       const cleanInput = trimmedInput
+        .replace(/\^/g, '')
         .replace(/\\\r?\n/g, ' ')
-        .replace(/\^\r?\n/g, ' ')
         .replace(/\s+/g, ' ');
 
-      // Parse Target URL (supports Windows CMD ^" http://... ^")
-      const urlMatch = cleanInput.match(/curl\s+(?:-[A-Za-z0-9]+\s+)*[\^"']*(https?:\/\/[^\s\^"']+)/i);
+      // Parse Target URL
+      const urlMatch = cleanInput.match(/curl\s+(?:-[A-Za-z0-9]+\s+)*["']?([^"'\s]+)["']?/i);
       if (!urlMatch) {
         return res.status(400).json({ error: 'Không tìm thấy đường dẫn URL hợp lệ trong câu lệnh cURL.' });
       }
-      const targetUrl = urlMatch[1].replace(/[\^"']/g, '').trim();
+      const targetUrl = urlMatch[1].replace(/["']/g, '').trim();
 
-      // Parse Headers (supports Windows CMD ^"Header: Value^")
+      // Parse Headers
       const headers: Record<string, string> = {
         'content-type': 'application/json',
         'origin': 'https://dautoeic.com',
         'referer': 'https://dautoeic.com/'
       };
 
-      const headerMatches = cleanInput.match(/-H\s+[\^"']*(.+?)[\^"']*(?=\s+-[HA-Za-z]|\s+--|\s*$)/gi);
+      const headerMatches = cleanInput.match(/-H\s+["']?([^"']+?)["']?(?=\s+-[HA-Za-z]|\s+--|\s*$)/gi);
       if (headerMatches) {
         for (const hStr of headerMatches) {
-          const rawH = hStr.replace(/^-H\s+/, '').replace(/\^"/g, '"').replace(/\^/g, '').replace(/^['"]|['"]$/g, '');
+          const rawH = hStr.replace(/^-H\s+/, '').replace(/^['"]|['"]$/g, '');
           const colonIdx = rawH.indexOf(':');
           if (colonIdx > 0) {
             const key = rawH.substring(0, colonIdx).trim().toLowerCase();
@@ -589,21 +589,20 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
         }
       }
 
-      // Parse Body Data (supports Windows CMD ^"^^{^\^"p_test_id^\^}...^^"^")
+      // Parse Body Data
       let bodyData: any = null;
-      const dataMatch = cleanInput.match(/(?:--data-raw|-d|--data)\s+(.+?)(?=\s+-[HA-Za-z]|\s+--|\s*$)/i);
+      const dataMatch = cleanInput.match(/(?:--data-raw|-d|--data)\s+["']?([\s\S]+?)["']?$/i);
       if (dataMatch) {
         try {
           const rawBody = dataMatch[1]
-            .replace(/\^"/g, '"')
             .replace(/\\"/g, '"')
-            .replace(/\^\^/g, '')
-            .replace(/\^/g, '');
+            .replace(/\\}/g, '}')
+            .replace(/\\{/g, '{');
 
           const startIdx = rawBody.indexOf('{');
           const endIdx = rawBody.lastIndexOf('}');
           if (startIdx !== -1 && endIdx > startIdx) {
-            let jsonSubStr = rawBody.substring(startIdx, endIdx + 1).replace(/\\"/g, '"');
+            let jsonSubStr = rawBody.substring(startIdx, endIdx + 1);
             bodyData = JSON.parse(jsonSubStr);
             if (typeof bodyData === 'string') {
               bodyData = JSON.parse(bodyData);
