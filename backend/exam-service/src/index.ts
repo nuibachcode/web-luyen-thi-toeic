@@ -603,8 +603,11 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
           const startIdx = rawBody.indexOf('{');
           const endIdx = rawBody.lastIndexOf('}');
           if (startIdx !== -1 && endIdx > startIdx) {
-            const jsonSubStr = rawBody.substring(startIdx, endIdx + 1);
+            let jsonSubStr = rawBody.substring(startIdx, endIdx + 1).replace(/\\"/g, '"');
             bodyData = JSON.parse(jsonSubStr);
+            if (typeof bodyData === 'string') {
+              bodyData = JSON.parse(bodyData);
+            }
             if (bodyData?.p_test_id) {
               defaultCode = `toeic-${bodyData.p_test_id.substring(0, 8)}`;
             }
