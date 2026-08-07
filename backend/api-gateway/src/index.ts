@@ -94,10 +94,12 @@ setInterval(() => {
   const accountUrl = process.env.ACCOUNT_SERVICE_URL || 'https://aerotoeic-account-service.onrender.com';
   const examUrl = process.env.EXAM_SERVICE_URL || 'https://aerotoeic-exam-service.onrender.com';
   const catalogUrl = process.env.CATALOG_SERVICE_URL || 'https://aerotoeic-catalog-service.onrender.com';
+  const aiUrl = process.env.AI_SERVICE_URL || 'https://aerotoeic-ai-service.onrender.com';
 
   if (accountUrl.includes('onrender.com')) fetch(`${accountUrl}/health`).catch(() => {});
   if (examUrl.includes('onrender.com')) fetch(`${examUrl}/health`).catch(() => {});
   if (catalogUrl.includes('onrender.com')) fetch(`${catalogUrl}/health`).catch(() => {});
+  if (aiUrl.includes('onrender.com')) fetch(`${aiUrl}/health`).catch(() => {});
 }, 4 * 60 * 1000);
 
 app.listen(port, () => console.log(`Pure Microservices API Gateway listening on :${port}`));
