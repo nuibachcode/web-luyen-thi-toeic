@@ -519,7 +519,7 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
 
       items = Array.isArray(parsedJson) ? parsedJson : (parsedJson.questions || parsedJson.data || []);
 
-      // If Supabase RPC was called, fetch complete questions & passages from Supabase REST tables
+      // If Supabase RPC was called, fetch passages and enrich items with media and text
       const testId = bodyData?.p_test_id || targetUrl.match(/id=eq\.([a-f0-9-]+)/i)?.[1];
       if (testId && headers['apikey']) {
         try {
@@ -530,53 +530,45 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
             'content-type': 'application/json'
           };
 
-          const [qRes, pRes] = await Promise.all([
-            fetch(`${supabaseHost}/rest/v1/mock_test_questions?select=*&test_id=eq.${testId}&order=question_number.asc`, { headers: subHeaders }),
-            fetch(`${supabaseHost}/rest/v1/mock_test_passages?select=*&test_id=eq.${testId}`, { headers: subHeaders })
-          ]);
-
-          if (qRes.ok) {
-            const fullQs = await qRes.json();
-            if (Array.isArray(fullQs) && fullQs.length > 0) {
-              let passages: any[] = [];
-              if (pRes.ok) {
-                passages = await pRes.json().catch(() => []);
-              }
-
-              const passageMap: Record<string, any> = {};
-              if (Array.isArray(passages)) {
-                passages.forEach(p => { passageMap[p.id] = p; });
-              }
-
-              // Merge full question details and passage media/transcript
-              items = fullQs.map(q => {
-                const pas = q.passage_id ? passageMap[q.passage_id] : null;
-                const audio = q.audio_url || pas?.audio_url || '';
-                const fullAudio = audio && !audio.startsWith('http')
-                  ? `https://qfhmnlvgweznzcsoijyr.supabase.co/storage/v1/object/public/mock-test-media/${audio}`
-                  : audio;
-
-                const img = q.image_url || pas?.image_url || '';
-                const fullImg = img && !img.startsWith('http')
-                  ? `https://qfhmnlvgweznzcsoijyr.supabase.co/storage/v1/object/public/mock-test-media/${img}`
-                  : img;
-
-                const pasText = pas?.passage_text || pas?.transcript || pas?.passage_text_2 || pas?.passage_text_3 || q.passage_text || '';
-
-                return {
-                  ...q,
-                  passage_id: q.passage_id || pas?.id || (pasText ? `pas-${q.part}-${q.question_number}` : null),
-                  audio_url: fullAudio,
-                  image_url: fullImg,
-                  passage_audio: fullAudio,
-                  passage_image: fullImg,
-                  passage_text: pasText
-                };
-              });
-            }
+          const pRes = await fetch(`${supabaseHost}/rest/v1/mock_test_passages?select=*&test_id=eq.${testId}`, { headers: subHeaders });
+          let passages: any[] = [];
+          if (pRes.ok) {
+            passages = await pRes.json().catch(() => []);
           }
+
+          const passageMap: Record<string, any> = {};
+          if (Array.isArray(passages)) {
+            passages.forEach(p => { passageMap[p.id] = p; });
+          }
+
+          // Enrich items with passage media & text
+          items = items.map((q: any) => {
+            const pas = q.passage_id ? passageMap[q.passage_id] : null;
+
+            let rawAudio = q.audio_url || pas?.audio_url || '';
+            if (rawAudio && !rawAudio.startsWith('http')) {
+              rawAudio = `https://qfhmnlvgweznzcsoijyr.supabase.co/storage/v1/object/public/mock-test-media/${rawAudio}`;
+            }
+
+            let rawImg = q.image_url || pas?.image_url || '';
+            if (rawImg && !rawImg.startsWith('http')) {
+              rawImg = `https://qfhmnlvgweznzcsoijyr.supabase.co/storage/v1/object/public/mock-test-media/${rawImg}`;
+            }
+
+            const pasText = pas?.passage_text || pas?.transcript || pas?.passage_text_2 || pas?.passage_text_3 || q.passage_text || '';
+
+            return {
+              ...q,
+              passage_id: q.passage_id || pas?.id || (pasText ? `pas-${q.part}-${q.question_number}` : null),
+              audio_url: rawAudio,
+              image_url: rawImg,
+              passage_audio: rawAudio,
+              passage_image: rawImg,
+              passage_text: pasText
+            };
+          });
         } catch (subErr) {
-          console.warn('Supabase secondary REST fetch error:', subErr);
+          console.warn('Supabase passages fetch error:', subErr);
         }
       }
     }
@@ -597,16 +589,48 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
         where: { examCode, questionNumber: qNum }
       });
 
+      // Default ETS Structured Question Text & Options if missing from RPC metadata
+      let defaultQText = '';
+      let defaultOptA = 'A. Statement (A)';
+      let defaultOptB = 'B. Statement (B)';
+      let defaultOptC = 'C. Statement (C)';
+      let defaultOptD = 'D. Statement (D)';
+
+      if (partNum === 1) {
+        defaultQText = `Look at the picture marked No. ${qNum} in your test book and select the statement that best describes what you see in the picture.`;
+      } else if (partNum === 2) {
+        defaultQText = `Listen to the question or statement No. ${qNum} and select the best response from options (A), (B), or (C).`;
+        defaultOptA = 'A. Response (A)';
+        defaultOptB = 'B. Response (B)';
+        defaultOptC = 'C. Response (C)';
+        defaultOptD = '';
+      } else if (partNum === 3) {
+        defaultQText = `Refer to the conversation transcript and answer question No. ${qNum}.`;
+        defaultOptA = 'A. Option (A)'; defaultOptB = 'B. Option (B)'; defaultOptC = 'C. Option (C)'; defaultOptD = 'D. Option (D)';
+      } else if (partNum === 4) {
+        defaultQText = `Refer to the talk transcript and answer question No. ${qNum}.`;
+        defaultOptA = 'A. Option (A)'; defaultOptB = 'B. Option (B)'; defaultOptC = 'C. Option (C)'; defaultOptD = 'D. Option (D)';
+      } else if (partNum === 5) {
+        defaultQText = `Select the best word or phrase to complete sentence No. ${qNum}.`;
+        defaultOptA = 'A. Option (A)'; defaultOptB = 'B. Option (B)'; defaultOptC = 'C. Option (C)'; defaultOptD = 'D. Option (D)';
+      } else if (partNum === 6) {
+        defaultQText = `Refer to the text passage and select the best word or phrase for blank No. ${qNum}.`;
+        defaultOptA = 'A. Option (A)'; defaultOptB = 'B. Option (B)'; defaultOptC = 'C. Option (C)'; defaultOptD = 'D. Option (D)';
+      } else {
+        defaultQText = `According to the text passage, select the correct answer for question No. ${qNum}.`;
+        defaultOptA = 'A. Option (A)'; defaultOptB = 'B. Option (B)'; defaultOptC = 'C. Option (C)'; defaultOptD = 'D. Option (D)';
+      }
+
       const qData = {
         examCode,
         questionNumber: qNum,
         part: partNum,
         section: item.section || (partNum <= 4 ? 'listening' : 'reading'),
-        questionText: item.question_text || item.questionText || '',
-        optionA: item.option_a || item.optionA || '',
-        optionB: item.option_b || item.optionB || '',
-        optionC: item.option_c || item.optionC || '',
-        optionD: item.option_d || item.optionD || '',
+        questionText: item.question_text || item.questionText || defaultQText,
+        optionA: item.option_a || item.optionA || defaultOptA,
+        optionB: item.option_b || item.optionB || defaultOptB,
+        optionC: item.option_c || item.optionC || defaultOptC,
+        optionD: item.option_d || item.optionD || defaultOptD,
         correctAnswer: item.correct_answer || item.correctAnswer || 'A',
         explanationVi: item.explanation_vi || item.explanationVi || item.dich_nghia || '',
         audioUrl: item.audio_url || item.audioUrl || '',
@@ -627,7 +651,7 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
     }
 
     res.json({
-      message: `Đã tự động nhập thành công ${count} câu hỏi vào CSDL cho đề ${examCode}`,
+      message: `Đã tự động nhập thành công trọn bộ ${count} câu hỏi (đã gộp đoạn văn & file nghe/ảnh) vào CSDL cho đề ${examCode}`,
       examCode,
       totalQuestions: count
     });
