@@ -567,38 +567,7 @@ export default function ManagerExams() {
                 </h3>
                 <span style={{ fontSize: 13, color: '#64748b' }}>Chỉnh sửa trực tiếp từng câu từ Part 1 ➔ Part 7</span>
               </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <button
-                  onClick={async () => {
-                    if (!activeExamCode) return;
-                    if (!window.confirm(`Bạn có muốn Google Gemini AI phân tích bài nghe & bài đọc để tự động tạo chi tiết nội dung 200 câu hỏi và 4 đáp án A-B-C-D cho đề ${activeExamCode}?`)) return;
-                    try {
-                      setQMsg('🤖 AI đang phân tích bài nghe & bài đọc để điền 200 câu...');
-                      const res = await fetch(`${gateway}/api/admin/exams/${activeExamCode}/ai-enrich-questions`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-                      });
-                      const data = await res.json();
-                      if (res.ok) {
-                        setQMsg(`🎉 ${data.message}`);
-                        handleOpenQuestionEditor(activeExamCode);
-                      } else {
-                        alert(`❌ Lỗi AI: ${data.error}`);
-                      }
-                    } catch (err: any) {
-                      alert(`❌ Lỗi AI: ${err.message}`);
-                    }
-                  }}
-                  style={{
-                    padding: '8px 14px', borderRadius: 8, background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-                    color: '#ffffff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 13,
-                    boxShadow: '0 4px 12px rgba(139,92,246,0.3)', display: 'flex', alignItems: 'center', gap: 6
-                  }}
-                >
-                  🤖 AI Tự Động Sinh 200 Câu & Đáp Án
-                </button>
                 <button onClick={() => setShowQuestionModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: 36, height: 36, fontWeight: 800, cursor: 'pointer', fontSize: 16 }}>✕</button>
-              </div>
             </div>
 
             {/* PART TABS */}
