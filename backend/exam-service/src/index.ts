@@ -614,6 +614,10 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
         }
       }
 
+      if (headers['apikey']) {
+        headers['authorization'] = `Bearer ${headers['apikey']}`;
+      }
+
       const isPost = Boolean(bodyData) || /RPC/i.test(targetUrl) || /--data/i.test(cleanInput);
 
       // Execute HTTP Fetch
