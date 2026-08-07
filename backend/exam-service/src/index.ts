@@ -651,7 +651,7 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
           const supabaseHost = targetUrl.match(/https:\/\/[^/]+/)?.[0] || 'https://qfhmnlvgweznzcsoijyr.supabase.co';
           const subHeaders = {
             'apikey': headers['apikey'],
-            'authorization': headers['authorization'] || `Bearer ${headers['apikey']}`,
+            'authorization': `Bearer ${headers['apikey']}`,
             'content-type': 'application/json'
           };
 
