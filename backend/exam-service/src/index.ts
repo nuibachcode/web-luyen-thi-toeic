@@ -556,42 +556,58 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
     if (rawJsonItems && Array.isArray(rawJsonItems)) {
       items = rawJsonItems;
     } else {
-      // Clean multi-line backslashes and normalize space
-      const cleanInput = trimmedInput.replace(/\\\r?\n/g, ' ').replace(/\s+/g, ' ');
+      // Clean multi-line backslashes/carets and normalize space
+      const cleanInput = trimmedInput
+        .replace(/\\\r?\n/g, ' ')
+        .replace(/\^\r?\n/g, ' ')
+        .replace(/\s+/g, ' ');
 
-      // Parse Target URL
-      const urlMatch = cleanInput.match(/curl\s+(?:-[A-Za-z0-9]+\s+)*['"]?([^'\s]+)['"]?/i);
+      // Parse Target URL (supports Windows CMD ^" http://... ^")
+      const urlMatch = cleanInput.match(/curl\s+(?:-[A-Za-z0-9]+\s+)*[\^"']*(https?:\/\/[^\s\^"']+)/i);
       if (!urlMatch) {
         return res.status(400).json({ error: 'Không tìm thấy đường dẫn URL hợp lệ trong câu lệnh cURL.' });
       }
-      const targetUrl = urlMatch[1];
+      const targetUrl = urlMatch[1].replace(/[\^"']/g, '').trim();
 
-      // Parse Headers
+      // Parse Headers (supports Windows CMD ^"Header: Value^")
       const headers: Record<string, string> = {
         'content-type': 'application/json',
         'origin': 'https://dautoeic.com',
         'referer': 'https://dautoeic.com/'
       };
 
-      const headerRegex = /-H\s+['"]([^'"]+?)['"]/gi;
-      let hMatch;
-      while ((hMatch = headerRegex.exec(cleanInput)) !== null) {
-        const colonIdx = hMatch[1].indexOf(':');
-        if (colonIdx > 0) {
-          const key = hMatch[1].substring(0, colonIdx).trim().toLowerCase();
-          const val = hMatch[1].substring(colonIdx + 1).trim();
-          headers[key] = val;
+      const headerMatches = cleanInput.match(/-H\s+[\^"']*(.+?)[\^"']*(?=\s+-[HA-Za-z]|\s+--|\s*$)/gi);
+      if (headerMatches) {
+        for (const hStr of headerMatches) {
+          const rawH = hStr.replace(/^-H\s+/, '').replace(/\^"/g, '"').replace(/\^/g, '').replace(/^['"]|['"]$/g, '');
+          const colonIdx = rawH.indexOf(':');
+          if (colonIdx > 0) {
+            const key = rawH.substring(0, colonIdx).trim().toLowerCase();
+            const val = rawH.substring(colonIdx + 1).trim();
+            headers[key] = val;
+          }
         }
       }
 
-      // Parse Body Data
+      // Parse Body Data (supports Windows CMD ^"^^{^\^"p_test_id^\^}...^^"^")
       let bodyData: any = null;
-      const dataMatch = cleanInput.match(/(?:--data-raw|-d)\s+['"]({[\s\S]+?})['"]/i);
+      const dataMatch = cleanInput.match(/(?:--data-raw|-d)\s+[\^"']*(.+?)[\^"']*$/i);
       if (dataMatch) {
         try {
-          bodyData = JSON.parse(dataMatch[1]);
-          if (bodyData?.p_test_id) {
-            defaultCode = `toeic-${bodyData.p_test_id.substring(0, 8)}`;
+          const rawBody = dataMatch[1]
+            .replace(/\^"/g, '"')
+            .replace(/\\"/g, '"')
+            .replace(/\^\^/g, '')
+            .replace(/\^/g, '');
+
+          const startIdx = rawBody.indexOf('{');
+          const endIdx = rawBody.lastIndexOf('}');
+          if (startIdx !== -1 && endIdx > startIdx) {
+            const jsonSubStr = rawBody.substring(startIdx, endIdx + 1);
+            bodyData = JSON.parse(jsonSubStr);
+            if (bodyData?.p_test_id) {
+              defaultCode = `toeic-${bodyData.p_test_id.substring(0, 8)}`;
+            }
           }
         } catch (e) {
           console.warn('Failed to parse cURL body JSON:', e);
