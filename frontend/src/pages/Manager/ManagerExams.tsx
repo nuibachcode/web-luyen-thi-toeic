@@ -560,14 +560,45 @@ export default function ManagerExams() {
       {showQuestionModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'grid', placeItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ background: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '960px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 25px 50px rgba(0,0,0,0.3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>
                   📝 Bộ Biên Tập 200 Câu Hỏi: <span style={{ color: '#2563eb' }}>{activeExamCode}</span>
                 </h3>
                 <span style={{ fontSize: 13, color: '#64748b' }}>Chỉnh sửa trực tiếp từng câu từ Part 1 ➔ Part 7</span>
               </div>
-              <button onClick={() => setShowQuestionModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: 36, height: 36, fontWeight: 800, cursor: 'pointer', fontSize: 16 }}>✕</button>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <button
+                  onClick={async () => {
+                    if (!activeExamCode) return;
+                    if (!window.confirm(`Bạn có muốn Google Gemini AI phân tích bài nghe & bài đọc để tự động tạo chi tiết nội dung 200 câu hỏi và 4 đáp án A-B-C-D cho đề ${activeExamCode}?`)) return;
+                    try {
+                      setQMsg('🤖 AI đang phân tích bài nghe & bài đọc để điền 200 câu...');
+                      const res = await fetch(`${gateway}/api/admin/exams/${activeExamCode}/ai-enrich-questions`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        setQMsg(`🎉 ${data.message}`);
+                        handleOpenQuestionEditor(activeExamCode);
+                      } else {
+                        alert(`❌ Lỗi AI: ${data.error}`);
+                      }
+                    } catch (err: any) {
+                      alert(`❌ Lỗi AI: ${err.message}`);
+                    }
+                  }}
+                  style={{
+                    padding: '8px 14px', borderRadius: 8, background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                    color: '#ffffff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 13,
+                    boxShadow: '0 4px 12px rgba(139,92,246,0.3)', display: 'flex', alignItems: 'center', gap: 6
+                  }}
+                >
+                  🤖 AI Tự Động Sinh 200 Câu & Đáp Án
+                </button>
+                <button onClick={() => setShowQuestionModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: 36, height: 36, fontWeight: 800, cursor: 'pointer', fontSize: 16 }}>✕</button>
+              </div>
             </div>
 
             {/* PART TABS */}
@@ -605,8 +636,13 @@ export default function ManagerExams() {
               <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Đang tải 200 câu hỏi từ CSDL...</div>
             ) : (
               <>
-                <div style={{ fontSize: 13, color: '#475569', marginBottom: 12, fontWeight: 600 }}>
-                  📌 Đã nạp {currentPartQuestions.length} câu hỏi thuộc Part {activePart}.
+                <div style={{ fontSize: 13, color: '#475569', marginBottom: 12, fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>📌 Đã nạp {currentPartQuestions.length} câu hỏi thuộc Part {activePart}.</span>
+                  {qMsg && (
+                    <span style={{ padding: '4px 10px', borderRadius: 6, background: qMsg.includes('🎉') ? '#dcfce7' : '#eff6ff', color: qMsg.includes('🎉') ? '#166534' : '#1d4ed8', fontWeight: 700 }}>
+                      {qMsg}
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>

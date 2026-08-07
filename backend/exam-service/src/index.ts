@@ -420,6 +420,115 @@ app.post('/api/admin/exams/:code/batch-questions', async (req, res) => {
   }
 });
 
+// AI Automatic Question & Option Enricher for Imported Exams
+app.post('/api/admin/exams/:code/ai-enrich-questions', async (req, res) => {
+  try {
+    const { code } = req.params;
+    const apiKey = req.body.apiKey || process.env.GEMINI_API_KEY || '';
+
+    const questions = await prisma.question.findMany({
+      where: { examCode: code },
+      orderBy: { questionNumber: 'asc' }
+    });
+
+    if (!questions.length) return res.status(404).json({ error: 'Không tìm thấy câu hỏi cho mã đề này' });
+
+    // Group questions by passageId or by chunks
+    const passageGroups: Record<string, typeof questions> = {};
+    const singleQs: typeof questions = [];
+
+    for (const q of questions) {
+      if (q.passageId && q.passageText && q.passageText.trim().length > 10) {
+        passageGroups[q.passageId] = passageGroups[q.passageId] || [];
+        passageGroups[q.passageId].push(q);
+      } else {
+        singleQs.push(q);
+      }
+    }
+
+    let updatedCount = 0;
+
+    // Enrich Passage-based Questions (Part 3, 4, 6, 7)
+    for (const [pasId, group] of Object.entries(passageGroups)) {
+      const qNums = group.map(g => g.questionNumber).join(', ');
+      const pasText = group[0].passageText || '';
+      const partNum = group[0].part;
+
+      const prompt = `Bạn là Chuyên gia Biên soạn Đề thi TOEIC ETS. Dựa vào đoạn văn/hội thoại TOEIC Part ${partNum} sau:
+
+"${pasText}"
+
+Hãy tự động biên soạn nội dung câu hỏi trắc nghiệm tiếng Anh chi tiết (kèm 4 lựa chọn A, B, C, D và lời giải tiếng Việt) bám sát nội dung đoạn văn trên cho các câu số: ${qNums}.
+
+Trả về duy nhất JSON hợp lệ (không chứa markdown codeblock):
+[
+  {
+    "questionNumber": ${group[0].questionNumber},
+    "questionText": "What is the main topic of the text?",
+    "optionA": "A. Option A",
+    "optionB": "B. Option B",
+    "optionC": "C. Option C",
+    "optionD": "D. Option D",
+    "correctAnswer": "${group[0].correctAnswer || 'A'}",
+    "explanationVi": "Lời giải tiếng Việt chi tiết..."
+  }
+]`;
+
+      try {
+        const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${apiKey}`;
+        const aiRes = await fetch(aiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+
+        if (aiRes.ok) {
+          const data = await aiRes.json();
+          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          let parsed: any[] = [];
+          try {
+            parsed = JSON.parse(cleanText);
+          } catch (pe) {
+            const start = cleanText.indexOf('[');
+            const end = cleanText.lastIndexOf(']');
+            if (start !== -1 && end > start) {
+              parsed = JSON.parse(cleanText.slice(start, end + 1));
+            }
+          }
+
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              const matchingQ = group.find(g => g.questionNumber === Number(item.questionNumber));
+              if (matchingQ) {
+                await prisma.question.update({
+                  where: { id: matchingQ.id },
+                  data: {
+                    questionText: item.questionText || matchingQ.questionText,
+                    optionA: item.optionA || matchingQ.optionA,
+                    optionB: item.optionB || matchingQ.optionB,
+                    optionC: item.optionC || matchingQ.optionC,
+                    optionD: item.optionD || matchingQ.optionD,
+                    explanationVi: item.explanationVi || matchingQ.explanationVi
+                  }
+                });
+                updatedCount++;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`AI Enrich error for passage ${pasId}:`, (err as Error).message);
+      }
+    }
+
+    res.json({ message: `AI đã tự động phân tích bài đọc & bổ sung nội dung cho ${updatedCount} câu hỏi!`, updatedCount });
+  } catch (err) {
+    console.error('AI enrich questions error:', err);
+    res.status(500).json({ error: 'Lỗi AI tự động điền câu hỏi' });
+  }
+});
+
 // Import Exam from cURL (Supabase REST / RPC or raw JSON)
 app.post('/api/admin/exams/import-curl', async (req, res) => {
   try {
