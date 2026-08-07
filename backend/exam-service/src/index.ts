@@ -591,7 +591,7 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
 
       // Parse Body Data (supports Windows CMD ^"^^{^\^"p_test_id^\^}...^^"^")
       let bodyData: any = null;
-      const dataMatch = cleanInput.match(/(?:--data-raw|-d)\s+[\^"']*(.+?)[\^"']*$/i);
+      const dataMatch = cleanInput.match(/(?:--data-raw|-d|--data)\s+(.+?)(?=\s+-[HA-Za-z]|\s+--|\s*$)/i);
       if (dataMatch) {
         try {
           const rawBody = dataMatch[1]
