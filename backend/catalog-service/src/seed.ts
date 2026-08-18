@@ -5,7 +5,15 @@ import { PrismaClient } from '@prisma/client';
 
 dotenv.config();
 
-process.env.DATABASE_URL ||= `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'password'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'postgres'}?schema=public`;
+// Hỗ trợ tự động nhận diện Docker DB (port 5435) hoặc Standard Postgres (port 5432)
+if (!process.env.DATABASE_URL) {
+  const host = process.env.DB_HOST || 'localhost';
+  const user = process.env.CATALOG_DB_USER || process.env.DB_USER || 'toeic_catalog';
+  const pass = process.env.CATALOG_DB_PASSWORD || process.env.DB_PASSWORD || 'change-me-catalog';
+  const port = process.env.DB_PORT || '5435';
+  const db = process.env.DB_NAME || 'toeic_catalog';
+  process.env.DATABASE_URL = `postgresql://${user}:${pass}@${host}:${port}/${db}?schema=public`;
+}
 const prisma = new PrismaClient();
 
 async function seedCatalogExams() {
