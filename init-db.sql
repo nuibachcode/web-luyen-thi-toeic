@@ -47,3 +47,47 @@ CREATE TABLE IF NOT EXISTS exams (
 INSERT INTO users (email, name, password_hash, role) 
 VALUES ('admin@toeic.com', 'Super Admin', '$2b$10$h0JyYlmhmJRUWSd79l//ee7aFEqIl20n/etc/BkmReaEoFFtDAxDa', 'SUPERADMIN') -- pass: admin123
 ON CONFLICT (email) DO NOTHING;
+
+-- Dữ liệu câu hỏi chi tiết của exam-service
+CREATE TABLE IF NOT EXISTS questions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    exam_code VARCHAR(100) NOT NULL,
+    question_number SMALLINT NOT NULL,
+    part SMALLINT NOT NULL,
+    section VARCHAR(20),
+    question_text TEXT,
+    option_a TEXT,
+    option_b TEXT,
+    option_c TEXT,
+    option_d TEXT,
+    correct_answer VARCHAR(1),
+    explanation_vi TEXT,
+    explanation_en TEXT,
+    audio_url TEXT,
+    image_url TEXT,
+    passage_id VARCHAR(100),
+    passage_text TEXT,
+    passage_audio TEXT,
+    passage_image TEXT,
+    tu_vung JSONB,
+    raw_data JSONB,
+    UNIQUE(exam_code, question_number)
+);
+
+CREATE INDEX IF NOT EXISTS questions_exam_code_idx ON questions (exam_code);
+CREATE INDEX IF NOT EXISTS questions_exam_code_part_idx ON questions (exam_code, part);
+
+-- Hồ sơ học tập và AI Memory của học viên
+CREATE TABLE IF NOT EXISTS ai_student_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE NOT NULL,
+    target_score SMALLINT NOT NULL DEFAULT 750,
+    duration_days SMALLINT NOT NULL DEFAULT 30,
+    active_roadmap JSONB,
+    daily_lessons_cache JSONB,
+    daily_quiz_results JSONB,
+    completed_task_keys JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+

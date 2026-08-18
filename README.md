@@ -117,9 +117,16 @@ graph TD
    docker-compose up -d --build
    ```
 
-4. **Truy Cập Trang Web**:
+4. **Nạp 10 Đề Thi Mẫu & Khởi Tạo CSDL (Seed Data)**:
+   ```bash
+   # Nạp dữ liệu 10 đề thi ETS đầy đủ câu hỏi, audio, lời giải vào CSDL:
+   npx tsx seeds/seed_all.ts
+   ```
+
+5. **Truy Cập Trang Web**:
    - **Frontend**: `http://localhost:5173` (hoặc qua Vite dev server)
    - **API Gateway**: `http://localhost:4000`
+   - **Tài khoản Admin mặc định**: `admin@toeic.com` / `admin123`
 
 ---
 
@@ -132,18 +139,27 @@ graph TD
    npm install
    npm run dev
 
-   # 2. Cài đặt từng Backend Service (Account, Exam, Catalog, AI, Gateway)
+   # 2. Cài đặt các Backend Service (Account, Exam, Catalog, AI, Gateway)
    cd ../backend/account-service
-   npm install
-   npx prisma db push
-   npm run dev
+   npm install && npx prisma db push && npm run dev
+
+   cd ../backend/exam-service
+   npm install && npx prisma db push && npm run dev
+
+   cd ../backend/catalog-service
+   npm install && npx prisma db push && npm run dev
+
+   cd ../backend/ai-service
+   npm install && npm run dev
+
+   cd ../backend/api-gateway
+   npm install && npm run dev
    ```
 
-2. **Khởi Động API Gateway**:
+2. **Nạp 10 Đề Thi Vào Database**:
    ```bash
-   cd ../api-gateway
-   npm install
-   npm run dev
+   # Chạy từ thư mục gốc dự án:
+   npx tsx seeds/seed_all.ts
    ```
 
 ---
