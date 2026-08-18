@@ -128,8 +128,22 @@ export default function TestPlayer() {
   const [showTranscript, setShowTranscript] = useState(false);
   const [showMatrixSidebar, setShowMatrixSidebar] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState(120 * 60); // 120 minutes in seconds
   const [loading, setLoading] = useState(true);
+
+  const handleRetakeTest = () => {
+    if (window.confirm('Bạn có muốn làm lại bài thi này từ đầu không? Toàn bộ đáp án đã chọn sẽ được thiết lập lại.')) {
+      setAnswers({});
+      setFlagged({});
+      setInlineExplanation({});
+      setIsSubmitted(false);
+      setShowResultModal(false);
+      setCurrentGroupIdx(0);
+      const dynamicTime = questions.length >= 180 ? 120 * 60 : Math.max(5, Math.ceil(questions.length * 0.6)) * 60;
+      setTimeLeft(dynamicTime);
+    }
+  };
 
   // Audio state
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -138,6 +152,15 @@ export default function TestPlayer() {
   // Fetch exam data & normalize
   useEffect(() => {
     setLoading(true);
+    setGroups([]);
+    setQuestions([]);
+    setCurrentGroupIdx(0);
+    setAnswers({});
+    setFlagged({});
+    setInlineExplanation({});
+    setIsSubmitted(false);
+    setShowResultModal(false);
+
     fetch(`${getApiGatewayUrl()}/api/exams/${encodeURIComponent(testCode)}`)
       .then(res => res.ok ? res.json() : Promise.reject())
       .then(data => {
@@ -145,7 +168,23 @@ export default function TestPlayer() {
         if (examObj.title) setTestTitle(examObj.title);
         const rawQs: any[] = examObj.questions || [];
         
-        // Normalize fields to prevent undefined errors
+        const normalizeText = (val: any): string => {
+          if (!val) return '';
+          if (typeof val === 'string') return val;
+          if (typeof val === 'object') {
+            if (typeof val.raw === 'string') return val.raw;
+            if (typeof val.text === 'string') return val.text;
+            if (typeof val.content === 'string') return val.content;
+            try {
+              return JSON.stringify(val);
+            } catch {
+              return '';
+            }
+          }
+          return String(val);
+        };
+
+        // Normalize fields to prevent undefined or object-child runtime errors
         const cleanedQs: Question[] = rawQs.map((q: any, idx: number) => {
           const pNum = Number(q.part) || 1;
           const sec = q.section || (pNum <= 4 ? 'listening' : 'reading');
@@ -153,7 +192,15 @@ export default function TestPlayer() {
             ...q,
             part: pNum,
             section: sec,
-            question_number: Number(q.question_number) || idx + 1
+            question_number: Number(q.question_number) || idx + 1,
+            question_text: normalizeText(q.question_text),
+            option_a: normalizeText(q.option_a),
+            option_b: normalizeText(q.option_b),
+            option_c: normalizeText(q.option_c),
+            option_d: normalizeText(q.option_d),
+            dich_nghia: normalizeText(q.dich_nghia || q.explanation_vi),
+            tu_vung: normalizeText(q.tu_vung),
+            passage_text: normalizeText(q.passage_text || q.passage?.passage_text),
           };
         });
 
@@ -194,21 +241,22 @@ export default function TestPlayer() {
               passage_id: pId,
               audio_url: p.audio_url || q.audio_url || null,
               image_url: p.image_url || q.image_url || null,
-              passage_text: p.passage_text || q.passage_text || null,
-              passage_text_2: p.passage_text_2 || null,
-              passage_text_3: p.passage_text_3 || null,
+              passage_text: normalizeText(p.passage_text || q.passage_text),
+              passage_text_2: normalizeText(p.passage_text_2),
+              passage_text_3: normalizeText(p.passage_text_3),
               title: p.title || null,
               questions: [q]
             });
           }
         }
         setGroups(grps);
+        setCurrentGroupIdx(0);
       })
       .catch(() => {
         alert('Không tải được nội dung bài thi. Mời bạn kiểm tra lại server backend.');
       })
       .finally(() => setLoading(false));
-  }, [testCode]);
+  }, [testCode, location.search]);
 
   // Timer for Exam Mode
   useEffect(() => {
@@ -226,7 +274,7 @@ export default function TestPlayer() {
     return () => clearInterval(timer);
   }, [mode, isSubmitted]);
 
-  const currentGroup = groups[currentGroupIdx] || null;
+  const currentGroup = groups.length > 0 ? (groups[currentGroupIdx] || groups[0]) : null;
 
   const hasValidText = (text?: string | null) => {
     if (!text) return false;
@@ -264,9 +312,10 @@ export default function TestPlayer() {
   };
 
   const handleSubmit = async () => {
-    if (!isSubmitted && window.confirm('Bạn có chắc chắn muốn nộp bài và chấm điểm ngay bây giờ không?')) {
+    if (!isSubmitted && (timeLeft <= 0 || window.confirm('Bạn có chắc chắn muốn nộp bài và chấm điểm ngay bây giờ không?'))) {
       const score = calculateScore();
       setIsSubmitted(true);
+      setShowResultModal(true);
       setShowMatrixSidebar(true); // Auto-open matrix after submit to show summary
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -341,30 +390,49 @@ export default function TestPlayer() {
       
       {/* HEADER BAR */}
       <header className="exam-player-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button 
-            onClick={() => { if (window.confirm('Bạn có muốn thoát khỏi phòng thi? Các đáp án chưa nộp có thể không được lưu.')) navigate('/student/tests'); }}
-            style={{ background: 'transparent', color: '#cbd5e1', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
-          >
-            ← Thoát
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {!isSubmitted ? (
+            <button 
+              onClick={() => { if (window.confirm('Bạn có muốn rời phòng thi? Các câu trả lời chưa nộp sẽ không được lưu.')) navigate('/student/tests'); }}
+              style={{ background: 'transparent', color: '#cbd5e1', border: '1px solid #475569', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              ← Rời phòng thi
+            </button>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button 
+                onClick={() => navigate('/student')}
+                style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #0284c7', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                title="Quay về Trang chủ học viên"
+              >
+                <span>🏠</span> Dashboard
+              </button>
+              <button 
+                onClick={() => navigate('/student/tests')}
+                style={{ background: '#1e293b', color: '#cbd5e1', border: '1px solid #475569', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+                title="Quay lại danh sách đề thi"
+              >
+                <span>📚</span> Đề thi khác
+              </button>
+            </div>
+          )}
           <div>
             <h1 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px' }}>
               {testTitle}
             </h1>
-            <span style={{ fontSize: '11.5px', color: mode === 'exam' ? '#f87171' : '#38bdf8', fontWeight: 700 }}>
-              {mode === 'exam' ? '▷ THI THỬ' : '📖 LUYỆN TẬP '}
+            <span style={{ fontSize: '11.5px', color: isSubmitted ? '#10b981' : mode === 'exam' ? '#f87171' : '#38bdf8', fontWeight: 700 }}>
+              {isSubmitted ? '✓ ĐÃ HOÀN THÀNH BÀI THI' : mode === 'exam' ? '▷ THI THỬ 120 PHÚT' : '📖 LUYỆN TẬP TỪNG PHẦN'}
             </span>
           </div>
         </div>
 
         {/* Current Part & Question Numbers */}
         <div style={{ background: '#0f172a', padding: '6px 16px', borderRadius: '20px', border: '1px solid #334155', fontWeight: 700, color: '#cbd5e1', fontSize: '14px' }}>
-          Part {currentGroup.part} • {(currentGroup.section || '').toUpperCase()} (Câu {currentGroup.questions[0].question_number} - {currentGroup.questions[currentGroup.questions.length - 1].question_number})
+          Part {currentGroup.part} • {(currentGroup.section || '').toUpperCase()} (Câu {currentGroup.questions?.[0]?.question_number || 1} - {currentGroup.questions?.[currentGroup.questions.length - 1]?.question_number || ''})
         </div>
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {mode === 'exam' && !isSubmitted && (
             <div style={{ 
               display: 'flex', 
@@ -387,39 +455,88 @@ export default function TestPlayer() {
             onClick={() => setShowMatrixSidebar(!showMatrixSidebar)}
             style={{ background: showMatrixSidebar ? '#334155' : '#0f172a', color: '#fff', border: '1px solid #475569', padding: '8px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <span>📋 Đáp án ({answeredCount}/{questions.length})</span>
+            <span>📋 Bảng câu hỏi ({answeredCount}/{questions.length})</span>
           </button>
 
           {!isSubmitted ? (
             <button 
               onClick={handleSubmit}
-              style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: '8px', fontWeight: 700, fontSize: '13.5px', cursor: 'pointer', boxShadow: '0 2px 6px rgba(59,130,246,0.4)' }}
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: '#fff', border: 'none', padding: '9px 20px', borderRadius: '8px', fontWeight: 700, fontSize: '13.5px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(59,130,246,0.4)' }}
             >
-              Nộp Bài →
+              Nộp Bài & Chấm Điểm →
             </button>
           ) : (
-            <span style={{ background: '#10b981', color: 'white', padding: '7px 14px', borderRadius: '6px', fontWeight: 700, fontSize: '13px' }}>
-              ✓ Đã Chấm Điểm
-            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={() => setShowResultModal(true)}
+                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(245,158,11,0.3)' }}
+              >
+                <span>🏆</span> Bảng Điểm Tổng Kết
+              </button>
+              <button 
+                onClick={() => navigate('/student/results')}
+                style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 8px rgba(16,185,129,0.3)' }}
+              >
+                <span>📊</span> Hoàn Tất & Xem Lịch Sử →
+              </button>
+            </div>
           )}
         </div>
       </header>
 
       {/* RESULTS BANNER WHEN SUBMITTED */}
       {isSubmitted && scoreData && (
-        <div style={{ background: '#0f172a', color: '#fff', padding: '20px 30px', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <span style={{ color: '#38bdf8', fontSize: '12px', fontWeight: 700, letterSpacing: '1px' }}>KẾT QUẢ BÀI THI CỦA BẠN</span>
-            <h2 style={{ fontSize: '32px', fontWeight: 800, margin: '4px 0', color: '#fbbf24' }}>
-              Tổng điểm: {scoreData.total} <span style={{ fontSize: '18px', color: '#94a3b8', fontWeight: 500 }}>/ 990</span>
-            </h2>
-            <div style={{ display: 'flex', gap: '25px', color: '#cbd5e1', fontSize: '14px', flexWrap: 'wrap' }}>
-              {scoreData.listTotal > 0 && <div>🎧 Listening: <b style={{ color: '#fff' }}>{scoreData.lScore}</b> (Đúng {scoreData.listCorrect}/{scoreData.listTotal})</div>}
-              {scoreData.readTotal > 0 && <div>📖 Reading: <b style={{ color: '#fff' }}>{scoreData.rScore}</b> (Đúng {scoreData.readCorrect}/{scoreData.readTotal})</div>}
+        <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)', color: '#fff', padding: '16px 28px', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, flexWrap: 'wrap', gap: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+            <div>
+              <span style={{ color: '#38bdf8', fontSize: '11px', fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase' }}>KẾT QUẢ BÀI THI TOEIC</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                <h2 style={{ fontSize: '32px', fontWeight: 900, margin: 0, color: '#fbbf24', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                  {scoreData.total}
+                </h2>
+                <span style={{ fontSize: '16px', color: '#94a3b8', fontWeight: 600 }}>/ 990 điểm</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '16px', background: 'rgba(15, 23, 42, 0.6)', padding: '8px 16px', borderRadius: '10px', border: '1px solid #334155', flexWrap: 'wrap' }}>
+              {scoreData.listTotal > 0 && (
+                <div style={{ fontSize: '13.5px' }}>
+                  🎧 Listening: <b style={{ color: '#38bdf8', fontSize: '15px' }}>{scoreData.lScore}</b> <span style={{ color: '#94a3b8', fontSize: '12px' }}>({scoreData.listCorrect}/{scoreData.listTotal} câu)</span>
+                </div>
+              )}
+              {scoreData.readTotal > 0 && (
+                <div style={{ fontSize: '13.5px' }}>
+                  📖 Reading: <b style={{ color: '#4ade80', fontSize: '15px' }}>{scoreData.rScore}</b> <span style={{ color: '#94a3b8', fontSize: '12px' }}>({scoreData.readCorrect}/{scoreData.readTotal} câu)</span>
+                </div>
+              )}
+              <div style={{ fontSize: '13.5px', borderLeft: '1px solid #475569', paddingLeft: '14px' }}>
+                🎯 Độ chính xác: <b style={{ color: '#f59e0b' }}>{Math.round(((scoreData.listCorrect + scoreData.readCorrect) / (scoreData.listTotal + scoreData.readTotal || 1)) * 100)}%</b>
+              </div>
             </div>
           </div>
-          <div style={{ maxWidth: '400px', fontSize: '13px', color: '#94a3b8', lineHeight: 1.5 }}>
-            💡 Nhấp vào ô số bất kỳ trên <b>Bảng đáp án ({questions.length} câu)</b> hoặc bấm mũi tên tới lui để kiểm tra tường tận bản dịch, giải thích chi tiết cho từng đáp án ĐÚNG/SAI.
+
+          {/* Quick Action Buttons on Result Banner */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button 
+              onClick={handleRetakeTest}
+              style={{ background: '#334155', color: '#f8fafc', border: '1px solid #475569', padding: '8px 14px', borderRadius: '8px', fontWeight: 600, fontSize: '12.5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Làm lại đề thi này từ đầu"
+            >
+              <span>🔄</span> Làm lại đề này
+            </button>
+            <button 
+              onClick={() => navigate('/student/roadmap')}
+              style={{ background: '#1e3a8a', color: '#93c5fd', border: '1px solid #3b82f6', padding: '8px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '12.5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Xem lộ trình học AI Tutor cá nhân hóa"
+            >
+              <span>🤖</span> Lộ trình AI
+            </button>
+            <button 
+              onClick={() => navigate('/student/results')}
+              style={{ background: '#10b981', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '12.5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(16,185,129,0.4)' }}
+            >
+              <span>📊</span> Lịch sử & Thống kê →
+            </button>
           </div>
         </div>
       )}
@@ -547,9 +664,17 @@ export default function TestPlayer() {
                 )}
 
                 {hasValidText(currentGroup.passage_text) ? (
-                  <div dangerouslySetInnerHTML={{ __html: currentGroup.passage_text! }} />
+                  <div>
+                    <div style={{ whiteSpace: 'pre-line' }} dangerouslySetInnerHTML={{ __html: currentGroup.passage_text!.replace(/\n/g, '<br/>') }} />
+                    {currentGroup.questions?.[0]?.explanation_vi && (
+                      <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1', color: '#334155', fontSize: '13.5px', whiteSpace: 'pre-line', lineHeight: '1.6' }}>
+                        <strong style={{ color: '#0f172a' }}>🇻🇳 Bản dịch tiếng Việt:</strong><br/>
+                        {currentGroup.questions[0].explanation_vi}
+                      </div>
+                    )}
+                  </div>
                 ) : aiTranscripts[currentGroup.id] ? (
-                  <div dangerouslySetInnerHTML={{ __html: aiTranscripts[currentGroup.id].replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                  <div style={{ whiteSpace: 'pre-line' }} dangerouslySetInnerHTML={{ __html: aiTranscripts[currentGroup.id].replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
                 ) : transcriptLoading[currentGroup.id] ? (
                   <div style={{ color: '#d97706', fontStyle: 'italic', padding: '16px 0', fontSize: '14px' }}>
                     ⏳ AeroAI đang khôi phục bản transcript bài nghe tiếng Anh và bản dịch tiếng Việt cho bạn...
@@ -859,10 +984,10 @@ export default function TestPlayer() {
                         const isFlagged = !!flagged[qNum];
                         const isCorrect = isSubmitted ? answers[qNum] === q.correct_answer : null;
 
-                        const isInCurrentGroup = currentGroup.questions.some(cq => cq.question_number === qNum);
+                        const isInCurrentGroup = currentGroup?.questions?.some(cq => cq.question_number === qNum) || false;
                         
                         // Strict TOEIC rule: In Exam mode, past listening parts are LOCKED!
-                        const currentFirstQ = currentGroup.questions[0].question_number;
+                        const currentFirstQ = currentGroup?.questions?.[0]?.question_number || 1;
                         const isLockedListening = mode === 'exam' && !isSubmitted && isListening && qNum < currentFirstQ && !isInCurrentGroup && q.part < currentGroup.part;
 
                         let bg = '#fff';
@@ -940,6 +1065,196 @@ export default function TestPlayer() {
         )}
 
       </main>
+
+      {/* RESULT COMPLETION POPUP MODAL */}
+      {showResultModal && scoreData && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.85)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          animation: 'fadeIn 0.25s ease-out'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '24px',
+            maxWidth: '560px',
+            width: '100%',
+            padding: '32px 28px',
+            boxShadow: '0 25px 60px -15px rgba(0,0,0,0.4)',
+            border: '1px solid #e2e8f0',
+            textAlign: 'center',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            {/* Header Icon */}
+            <div style={{
+              width: '72px',
+              height: '72px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '36px',
+              margin: '0 auto 16px auto',
+              boxShadow: '0 8px 16px rgba(245, 158, 11, 0.2)'
+            }}>
+              🏆
+            </div>
+
+            <span style={{ fontSize: '12px', fontWeight: 800, color: '#2563eb', letterSpacing: '1px', textTransform: 'uppercase' }}>
+              CHÚC MỪNG BẠN ĐÃ HOÀN THÀNH BÀI THI!
+            </span>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: '6px 0 16px 0' }}>
+              {testTitle}
+            </h2>
+
+            {/* Score Ring Display */}
+            <div style={{
+              background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+              borderRadius: '18px',
+              padding: '24px 20px',
+              color: '#ffffff',
+              marginBottom: '20px',
+              boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.05), 0 8px 20px rgba(15,23,42,0.15)'
+            }}>
+              <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>TỔNG ĐIỂM TOEIC ĐẠT ĐƯỢC</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '8px', margin: '6px 0' }}>
+                <span style={{ fontSize: '54px', fontWeight: 900, color: '#fbbf24', lineHeight: 1 }}>
+                  {scoreData.total}
+                </span>
+                <span style={{ fontSize: '20px', color: '#94a3b8', fontWeight: 700 }}>/ 990</span>
+              </div>
+
+              {/* Sub-scores Pill Breakdown */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '12px', padding: '10px 12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 700 }}>🎧 LISTENING</div>
+                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#ffffff', margin: '2px 0' }}>{scoreData.lScore} <span style={{ fontSize: '12px', color: '#94a3b8' }}>/ 495</span></div>
+                  <div style={{ fontSize: '11px', color: '#cbd5e1' }}>Đúng {scoreData.listCorrect}/{scoreData.listTotal} câu</div>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '12px', padding: '10px 12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '12px', color: '#4ade80', fontWeight: 700 }}>📖 READING</div>
+                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#ffffff', margin: '2px 0' }}>{scoreData.rScore} <span style={{ fontSize: '12px', color: '#94a3b8' }}>/ 495</span></div>
+                  <div style={{ fontSize: '11px', color: '#cbd5e1' }}>Đúng {scoreData.readCorrect}/{scoreData.readTotal} câu</div>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Assessment Box */}
+            <div style={{ background: '#f8fafc', borderRadius: '14px', padding: '14px 18px', border: '1px solid #e2e8f0', textAlign: 'left', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '16px' }}>💡</span>
+                <strong style={{ fontSize: '13px', color: '#1e293b' }}>Đánh giá năng lực:</strong>
+              </div>
+              <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5, margin: 0 }}>
+                {scoreData.total >= 800 
+                  ? '🌟 Xuất sắc! Trình độ Chuyên gia C1 — Bạn đã làm chủ ngữ pháp, từ vựng và kỹ năng xử lý thông tin nhanh chuẩn ETS.'
+                  : scoreData.total >= 650
+                  ? '🎯 Rất tốt! Trình độ Cao cấp B2 — Đạt chuẩn yêu cầu của hầu hết các doanh nghiệp đa quốc gia và tập đoàn lớn.'
+                  : scoreData.total >= 450
+                  ? '🚀 Khá tốt! Trình độ Trung cấp B1 — Hãy luyện thêm Part 3, Part 7 và bổ sung từ vựng trọng điểm để bứt phá mốc 700+.'
+                  : '💪 Cố gắng lên! Trình độ Cơ bản A2 — Đề xuất bạn xem Lộ trình học AI Tutor để củng cố ngữ pháp nền tảng.'}
+              </p>
+            </div>
+
+            {/* Action Buttons Workflow */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button 
+                onClick={() => setShowResultModal(false)}
+                style={{
+                  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.3)'
+                }}
+              >
+                <span>🔍</span> Xem Lời Giải & Chi Tiết Từng Câu (Tra Cứu)
+              </button>
+
+              <button 
+                onClick={() => navigate('/student/results')}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(16,185,129,0.3)'
+                }}
+              >
+                <span>📊</span> Xem Báo Cáo Phân Tích & Lịch Sử Làm Bài →
+              </button>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                <button 
+                  onClick={handleRetakeTest}
+                  style={{
+                    background: '#f1f5f9',
+                    color: '#334155',
+                    border: '1px solid #cbd5e1',
+                    padding: '10px 16px',
+                    borderRadius: '10px',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span>🔄</span> Làm lại đề này
+                </button>
+
+                <button 
+                  onClick={() => navigate('/student/tests')}
+                  style={{
+                    background: '#f1f5f9',
+                    color: '#334155',
+                    border: '1px solid #cbd5e1',
+                    padding: '10px 16px',
+                    borderRadius: '10px',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span>📚</span> Chọn đề thi khác
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

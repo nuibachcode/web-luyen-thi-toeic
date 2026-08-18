@@ -666,46 +666,51 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
             fetch(`${supabaseHost}/rest/v1/mock_test_passages?select=*&test_id=eq.${testId}`, { headers: subHeaders })
           ]);
 
+          let passages: any[] = [];
+          if (pRes.ok) {
+            passages = await pRes.json().catch(() => []);
+          }
+
+          const passageMap: Record<string, any> = {};
+          if (Array.isArray(passages)) {
+            passages.forEach(p => { passageMap[p.id] = p; });
+          }
+
+          let baseQs = items;
           if (qRes.ok) {
-            const fullQs = await qRes.json();
+            const fullQs = await qRes.json().catch(() => []);
             if (Array.isArray(fullQs) && fullQs.length > 0) {
-              let passages: any[] = [];
-              if (pRes.ok) {
-                passages = await pRes.json().catch(() => []);
-              }
-
-              const passageMap: Record<string, any> = {};
-              if (Array.isArray(passages)) {
-                passages.forEach(p => { passageMap[p.id] = p; });
-              }
-
-              // Merge full question details and passage media/transcript
-              items = fullQs.map((q: any) => {
-                const pas = q.passage_id ? passageMap[q.passage_id] : null;
-
-                let rawAudio = q.audio_url || pas?.audio_url || '';
-                if (rawAudio && !rawAudio.startsWith('http')) {
-                  rawAudio = `https://qfhmnlvgweznzcsoijyr.supabase.co/storage/v1/object/public/mock-test-media/${rawAudio}`;
-                }
-
-                let rawImg = q.image_url || pas?.image_url || '';
-                if (rawImg && !rawImg.startsWith('http')) {
-                  rawImg = `https://qfhmnlvgweznzcsoijyr.supabase.co/storage/v1/object/public/mock-test-media/${rawImg}`;
-                }
-
-                const pasText = pas?.passage_text || pas?.transcript || pas?.passage_text_2 || pas?.passage_text_3 || '';
-
-                return {
-                  ...q,
-                  passage_id: q.passage_id || pas?.id || null,
-                  audio_url: rawAudio,
-                  image_url: rawImg,
-                  passage_audio: rawAudio,
-                  passage_image: rawImg,
-                  passage_text: pasText
-                };
-              });
+              baseQs = fullQs;
             }
+          }
+
+          if (Array.isArray(baseQs) && baseQs.length > 0) {
+            items = baseQs.map((q: any) => {
+              const pas = q.passage_id ? passageMap[q.passage_id] : null;
+
+              let rawAudio = q.audio_url || pas?.audio_url || '';
+              if (rawAudio && !rawAudio.startsWith('http')) {
+                rawAudio = `https://qfhmnlvgweznzcsoijyr.supabase.co/storage/v1/object/public/mock-test-media/${rawAudio}`;
+              }
+
+              let rawImg = q.image_url || pas?.image_url || '';
+              if (rawImg && !rawImg.startsWith('http')) {
+                rawImg = `https://qfhmnlvgweznzcsoijyr.supabase.co/storage/v1/object/public/mock-test-media/${rawImg}`;
+              }
+
+              const pasText = pas?.passage_text || pas?.transcript || pas?.passage_text_2 || pas?.passage_text_3 || '';
+
+              return {
+                ...q,
+                passage_id: q.passage_id || pas?.id || null,
+                audio_url: rawAudio,
+                image_url: rawImg,
+                passage_audio: rawAudio,
+                passage_image: rawImg,
+                passage_text: pasText || q.passage_text || '',
+                passage: pas || null
+              };
+            });
           }
         } catch (subErr) {
           console.warn('Supabase questions/passages fetch error:', subErr);

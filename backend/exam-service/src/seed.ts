@@ -18,7 +18,7 @@ const prisma = new PrismaClient();
 
 async function seedExamQuestions() {
   console.log('🚀 Bắt đầu nạp dữ liệu đề thi vào exam-service...');
-  console.log(`🔗 Database URL: ${process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@')}`);
+  console.log(`🔗 Database URL: ${(process.env.DATABASE_URL || '').replace(/:[^:@]+@/, ':****@')}`);
 
   // Tìm thư mục seeds/exams
   const possiblePaths = [

@@ -34,7 +34,7 @@ app.get('/health', async (_req, res) => {
 });
 
 app.get('/api/exams', async (_req, res) => {
-  const exams = await prisma.exam.findMany({ where: { status: 'PUBLISHED' }, orderBy: { createdAt: 'desc' }, select: { code: true, title: true, description: true, durationMinutes: true } });
+  const exams = await prisma.exam.findMany({ where: { status: 'PUBLISHED' }, orderBy: { code: 'asc' }, select: { code: true, title: true, description: true, durationMinutes: true } });
   res.json({ exams: exams.map((exam: any) => ({ ...exam, duration_minutes: exam.durationMinutes, question_count: 200 })) });
 });
 

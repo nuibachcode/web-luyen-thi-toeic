@@ -18,7 +18,7 @@ const prisma = new PrismaClient();
 
 async function seedCatalogExams() {
   console.log('🚀 Bắt đầu nạp danh mục đề thi vào catalog-service...');
-  console.log(`🔗 Database URL: ${process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@')}`);
+  console.log(`🔗 Database URL: ${(process.env.DATABASE_URL || '').replace(/:[^:@]+@/, ':****@')}`);
 
   const possiblePaths = [
     path.join(__dirname, '../../../seeds/exams'),

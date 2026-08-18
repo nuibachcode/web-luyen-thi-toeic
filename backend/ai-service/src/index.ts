@@ -445,6 +445,7 @@ app.post('/api/ai/generate-day-lesson', async (req, res) => {
 
     if (!apiKey) {
       return res.status(400).json({ error: 'Chưa cấu hình Google Gemini API Key. Vui lòng nhập API Key để tạo bài học!' });
+    }
     const gap = targetScore - currentScore;
 
     const prompt = `Bạn là Giảng viên Luyện thi TOEIC ETS 990. Hãy biên soạn TRỌN BỘ BÀI HỌC CÁ NHÂN HÓA CHO NGÀY ${dayNumber} theo đúng chủ đề: "${dayTitle || 'Luyện tập chuyên sâu'}" (Trọng tâm: ${dayFocus || 'Kiến thức TOEIC'}).
