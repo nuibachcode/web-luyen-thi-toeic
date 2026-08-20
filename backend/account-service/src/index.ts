@@ -355,7 +355,7 @@ setInterval(() => {
   fetch('https://aerotoeic-api-gateway.onrender.com/health').catch(() => {});
 }, 4 * 60 * 1000);
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Account Service is running on port ${PORT}`);
   prisma.$connect()
     .then(async () => {

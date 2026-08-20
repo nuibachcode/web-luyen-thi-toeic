@@ -774,7 +774,7 @@ app.post('/api/admin/exams/import-curl', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
+app.listen(Number(port), '0.0.0.0', () => {
   console.log(`Exam Service listening on port ${port}`);
   prisma.$connect()
     .then(() => console.log('Prisma connected to Database successfully'))

@@ -507,6 +507,6 @@ Yêu cầu quan trọng: "vocabularyList" chứa 5-6 từ vựng xuất sắc ch
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🤖 AeroAI Dedicated Microservice listening on http://localhost:${PORT}`);
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`🤖 AeroAI Dedicated Microservice listening on http://0.0.0.0:${PORT}`);
 });
