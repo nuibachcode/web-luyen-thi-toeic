@@ -20,6 +20,8 @@ interface Question {
   option_d?: string | null;
   correct_answer?: string | null;
   dich_nghia?: string | null;
+  explanation_vi?: string | null;
+  explanation_en?: string | null;
   tu_vung?: string | null;
   passage?: any;
 }
