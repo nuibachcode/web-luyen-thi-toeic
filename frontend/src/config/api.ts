@@ -13,7 +13,7 @@ export const getApiGatewayUrl = (): string => {
     }
     // Remote / Production hostnames
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return 'https://aerotoeic-api-gateway.onrender.com';
+      return 'https://aerotoeic-api-gateway-yh6n.onrender.com';
     }
   }
 
