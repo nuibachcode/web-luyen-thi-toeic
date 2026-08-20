@@ -122,4 +122,4 @@ setInterval(() => {
   if (aiUrl.includes('onrender.com')) fetch(`${aiUrl}/health`).catch(() => {});
 }, 4 * 60 * 1000);
 
-app.listen(port, () => console.log(`Pure Microservices API Gateway listening on :${port}`));
+app.listen(port, '0.0.0.0', () => console.log(`Pure Microservices API Gateway listening on 0.0.0.0:${port}`));
