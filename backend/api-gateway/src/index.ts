@@ -84,7 +84,9 @@ const catalogProxy = createServiceProxy(services.catalog, 'Catalog Service');
 const aiProxy = createServiceProxy(services.ai, 'AI Service');
 const analyticsProxy = createServiceProxy(services.analytics, 'Analytics Service');
 
+app.get('/', (_req, res) => res.json({ status: 'Gateway running', services }));
 app.get('/health', (_req, res) => res.json({ status: 'Gateway running', services }));
+app.get('/api/health', (_req, res) => res.json({ status: 'Gateway running', services }));
 
 app.use('/api/auth', authProxy);
 app.use('/api/admin/users', verifyJwt, authProxy);
